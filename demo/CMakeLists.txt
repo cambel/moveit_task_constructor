@@ -31,6 +31,19 @@ add_library(pick_place_task OBJECT src/pick_place_task.cpp)
 add_executable(pick_place_demo src/pick_place_demo.cpp $<TARGET_OBJECTS:pick_place_task>)
 target_link_libraries(pick_place_demo ${catkin_LIBRARIES})
 
+#--- o2ac
+add_library(o2ac_lib src/o2ac_pick_place_task.cpp)
+set_target_properties(o2ac_lib PROPERTIES OUTPUT_NAME o2ac_demo_pick_place)
+add_dependencies(o2ac_lib ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+
+add_executable(${PROJECT_NAME}_demo src/moveit_task_constructor_demo.cpp)
+target_link_libraries(${PROJECT_NAME}_demo
+  ${PROJECT_NAME}_lib
+  ${catkin_LIBRARIES}
+)
+set_target_properties(${PROJECT_NAME}_demo PROPERTIES OUTPUT_NAME moveit_task_constructor_demo)
+add_dependencies(${PROJECT_NAME}_demo ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+# --- o2ac
 add_executable(alternative_path_costs src/alternative_path_costs.cpp)
 target_link_libraries(alternative_path_costs ${catkin_LIBRARIES})
 
