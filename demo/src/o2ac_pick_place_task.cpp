@@ -58,7 +58,6 @@ void PickPlaceTask::loadParameters() {
 	errors += !rosparam_shortcuts::get(LOGNAME, pnh, "eef_name", eef_name_);
 	errors += !rosparam_shortcuts::get(LOGNAME, pnh, "hand_frame", hand_frame_);
 	errors += !rosparam_shortcuts::get(LOGNAME, pnh, "world_frame", world_frame_);
-	errors += !rosparam_shortcuts::get(LOGNAME, pnh, "grasp_frame_transform", grasp_frame_transform_);
 
 	// Predefined pose targets
 	errors += !rosparam_shortcuts::get(LOGNAME, pnh, "hand_open_pose", hand_open_pose_);
@@ -70,8 +69,6 @@ void PickPlaceTask::loadParameters() {
 
 	// Target object
 	errors += !rosparam_shortcuts::get(LOGNAME, pnh, "object_name", object_name_);
-	errors += !rosparam_shortcuts::get(LOGNAME, pnh, "object_dimensions", object_dimensions_);
-	errors += !rosparam_shortcuts::get(LOGNAME, pnh, "object_reference_frame", object_reference_frame_);
 	errors += !rosparam_shortcuts::get(LOGNAME, pnh, "surface_link", surface_link_);
 	support_surfaces_ = { surface_link_ };
 
@@ -210,7 +207,7 @@ void PickPlaceTask::init() {
 			auto wrapper = std::make_unique<stages::ComputeIK>("grasp pose IK", std::move(stage));
 			wrapper->setMaxIKSolutions(8);
 			wrapper->setMinSolutionDistance(1.0);
-			wrapper->setIKFrame(grasp_frame_transform_, hand_frame_);
+			wrapper->setIKFrame(hand_frame_);
 			wrapper->properties().configureInitFrom(Stage::PARENT, { "eef", "group" });
 			wrapper->properties().configureInitFrom(Stage::INTERFACE, { "target_pose" });
 			grasp->insert(std::move(wrapper));
@@ -333,21 +330,6 @@ void PickPlaceTask::init() {
   ---- *          Generate Place Pose                       *
 		 *****************************************************/
 		{
-			// Generate Place Pose
-			// auto stage = std::make_unique<stages::GeneratePlacePose>("generate place pose");
-			// stage->properties().configureInitFrom(Stage::PARENT, { "ik_frame" });
-			// stage->properties().set("marker_ns", "place_pose");
-			// stage->setObject(object);
-
-			// // Set target pose
-			// geometry_msgs::PoseStamped p;
-			// p.header.frame_id = "wrs_assembly_1_part_01_screw_hole_panel2_1";
-			// p.pose = place_pose_;
-			// //p.pose.orientation.w = 1;
-			// // p.pose.position.z += 0.5 * object_dimensions_[0] + place_surface_offset_;
-			// stage->setPose(p);
-			// stage->setMonitoredStage(attach_object_stage);  // Hook into attach_object_stage
-
 			auto stage = std::make_unique<stages::GeneratePlacePoseSubframe>("generate place pose");
 			stage->properties().configureInitFrom(Stage::PARENT, { "ik_frame" });
 			stage->properties().set("marker_ns", "place_pose");
@@ -359,7 +341,6 @@ void PickPlaceTask::init() {
 			p.header.frame_id = "move_group/base/screw_hole_panel2_1";
 			// p.header.frame_id = "workspace_center";   // example
 			p.pose = place_pose_;
-			// p.pose.position.z += 0.5 * object_dimensions_[0] + place_surface_offset_;
 			p.pose.position.x -= place_surface_offset_;
 			stage->setPose(p);
 			stage->setMonitoredStage(attach_object_stage);  // Hook into attach_object_stage
@@ -367,7 +348,7 @@ void PickPlaceTask::init() {
 			// Compute IK
 			auto wrapper = std::make_unique<stages::ComputeIK>("place pose IK", std::move(stage));
 			wrapper->setMaxIKSolutions(2);
-			wrapper->setIKFrame(grasp_frame_transform_, hand_frame_);
+			wrapper->setIKFrame(hand_frame_);
 			wrapper->properties().configureInitFrom(Stage::PARENT, { "eef", "group" });
 			wrapper->properties().configureInitFrom(Stage::INTERFACE, { "target_pose" });
 			place->insert(std::move(wrapper));

@@ -30,9 +30,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************/
 
-/* Author: Henning Kayser, Simon Goldstein
-   Desc:   A demo to show MoveIt Task Constructor in action
-*/
 
 // ROS
 #include <ros/ros.h>
@@ -101,11 +98,9 @@ private:
 
 	// object + surface
 	std::vector<std::string> support_surfaces_;
-	std::string object_reference_frame_;
 	std::string surface_link_;
 	std::string object_name_;
 	std::string world_frame_;
-	std::vector<double> object_dimensions_;
 
 	// Predefined pose targets
 	std::string hand_open_pose_;
@@ -116,7 +111,6 @@ private:
 	actionlib::SimpleActionClient<moveit_task_constructor_msgs::ExecuteTaskSolutionAction> execute_;
 
 	// Pick metrics
-	Eigen::Isometry3d grasp_frame_transform_;
 	double approach_object_min_dist_;
 	double approach_object_max_dist_;
 	double lift_object_min_dist_;
@@ -126,4 +120,4 @@ private:
 	geometry_msgs::Pose place_pose_;
 	double place_surface_offset_;
 };
-}  // moveit_task_constructor_demo
+}  // o2ac_demo

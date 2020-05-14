@@ -14,7 +14,6 @@ arm_home_pose: "home"
 
 # Scene frames
 world_frame: "world"
-table_reference_frame: "world"
 object_reference_frame: "tray_center"
 surface_link: "tray_center"
 
@@ -22,24 +21,10 @@ surface_link: "tray_center"
 assembly_name: "wrs_assembly_1"
 
 # Collision object for picking
-# CYLINDER object specifications
 object_name: "panel"
-object_dimensions: [0.25, 0.02] # [height, radius]
-object_pose: [0.0, 0.0, 0.0, pi/2, 0.0, 0.0]
-
-# Table model
-spawn_table: False
-table_name: "table"
-table_dimensions: [0.4, 0.5, 0.1]  # [length, width, height]
-table_pose: [0.5, -0.25, 0, 0, 0, 0]
-
-# Gripper grasp frame transform [x,y,z,r,p,y]
-# grasp_frame_transform: [0, 0, 0.1, 1.571, 0.785, 1.571]
-# grasp_frame_transform: [0.0, 0, 0.05, -1.571, 0, 0]
-grasp_frame_transform: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+object_pose: [0.0, 0.0, 0.001, pi/2, 0.0, 0.0]
 
 # Place pose [x,y,z,r,p,y]
-#place_pose: [0.6, -0.15, 0, 0, 0, 0]
 place_pose: [0, 0, 0, 0, 0, 0]
 place_surface_offset: 0.0001 # place offset from table
 
@@ -48,5 +33,5 @@ approach_object_min_dist: 0.1
 approach_object_max_dist: 0.15
 
 # Valid height range when lifting an object after pick
-lift_object_min_dist: 0.01
-lift_object_max_dist: 0.1
+lift_object_min_dist: 0.1
+lift_object_max_dist: 0.15
