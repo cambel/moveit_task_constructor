@@ -36,6 +36,10 @@ add_library(o2ac_lib src/o2ac_pick_place_task.cpp)
 set_target_properties(o2ac_lib PROPERTIES OUTPUT_NAME o2ac_demo_pick_place)
 add_dependencies(o2ac_lib ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
+add_library(pick_place_task_for_action src/pick_place_task_for_action.cpp)
+set_target_properties(pick_place_task_for_action PROPERTIES OUTPUT_NAME pick_place_planning)
+add_dependencies(pick_place_task_for_action ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+
 add_executable(${PROJECT_NAME}_demo src/moveit_task_constructor_demo.cpp)
 target_link_libraries(${PROJECT_NAME}_demo
   ${PROJECT_NAME}_lib

@@ -1,0 +1,11 @@
+# Define the goal
+string robot  # name of move_group
+string object_name
+geometry_msgs/PoseStamped object_target_pose
+string object_frame_to_place  # subframe of the object
+---
+# Define the result
+bool success
+moveit_task_constructor_msgs/Solution solution
+---
+# Define a feedback message
