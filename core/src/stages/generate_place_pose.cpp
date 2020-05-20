@@ -32,7 +32,7 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************/
 
-/* Authors: Robert Haschke */
+/* Authors: Robert Haschke, Artur Istvan Karoly */
 
 #include <moveit/task_constructor/stages/generate_place_pose.h>
 #include <moveit/task_constructor/storage.h>
@@ -52,6 +52,7 @@ namespace stages {
 GeneratePlacePose::GeneratePlacePose(const std::string& name) : GeneratePose(name) {
 	auto& p = properties();
 	p.declare<std::string>("object");
+	p.declare<std::string>("subframe");
 	p.declare<geometry_msgs::PoseStamped>("ik_frame");
 }
 
@@ -103,7 +104,25 @@ void GeneratePlacePose::compute() {
 	Eigen::Isometry3d ik_frame;
 	tf::poseMsgToEigen(ik_frame_msg.pose, ik_frame);
 	ik_frame = robot_state.getGlobalLinkTransform(ik_frame_msg.header.frame_id) * ik_frame;
-	Eigen::Isometry3d object_to_ik = orig_object_pose.inverse() * ik_frame;
+
+	bool* subframe_exists = new bool;
+	Eigen::Isometry3d object_to_ik;
+
+	if (use_subframe)
+	{
+		std::string attach_link_name = object->getAttachedLink()->getName();
+		const Eigen::Isometry3d& subframe_pose_relative_to_attach_link = object->getSubframeTransform(props.get<std::string>("subframe"), subframe_exists);
+		if (*subframe_exists)
+		{
+			const Eigen::Isometry3d& subframe_pose_global = robot_state.getGlobalLinkTransform(attach_link_name) * subframe_pose_relative_to_attach_link;
+			object_to_ik = subframe_pose_global.inverse() * ik_frame;
+		} else {
+			ROS_WARN_STREAM_NAMED("GeneratePlacePose", "Subframe " + props.get<std::string>("subframe") + " could not be found.\nUsing object frame instead!\n");
+			object_to_ik = orig_object_pose.inverse() * ik_frame;
+		}
+	} else {
+		object_to_ik = orig_object_pose.inverse() * ik_frame;
+	}
 
 	// spawn the nominal target object pose, considering flip about z and rotations about z-axis
 	auto spawner = [&s, &scene, &object_to_ik, this](const Eigen::Isometry3d& nominal, uint z_flips,

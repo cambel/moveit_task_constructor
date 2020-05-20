@@ -64,8 +64,7 @@ class Pick_Place_Planning_Server
 
     void plan_pick_place_task(const moveit_task_constructor_msgs::PickPlacePlanningGoalConstPtr& goal)
     {
-        pick_place_task.loadParameters();
-        pick_place_task.init(goal->robot, goal->object_name, goal->object_target_pose, goal->object_frame_to_place);
+        pick_place_task.init(goal);
 
         bool success = false;
         moveit_task_constructor_msgs::Solution sol;

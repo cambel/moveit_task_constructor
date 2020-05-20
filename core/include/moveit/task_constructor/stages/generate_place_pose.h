@@ -32,8 +32,8 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************/
 
-/* Authors: Robert Haschke
-   Desc:    Generator Stage to place an object at a certain pose
+/* Authors: Robert Haschke, Artur Istvan Karoly
+   Desc:    Generator Stage to place an object at a certain pose enabling positioning with a subframe of the object
 */
 
 #pragma once
@@ -56,9 +56,16 @@ public:
 	void compute() override;
 
 	void setObject(const std::string& object) { setProperty("object", object); }
+	void setSubframe(const std::string& subframe)
+	{
+		setProperty("subframe", subframe);
+		use_subframe = true;
+	}
 
 protected:
 	void onNewSolution(const SolutionBase& s) override;
+
+	bool use_subframe = false;
 };
 }  // namespace stages
 }  // namespace task_constructor

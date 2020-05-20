@@ -30,6 +30,9 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************/
 
+/* Author: Henning Kayser, Simon Goldstein, Artur Istvan Karoly
+   Desc:   Task definition for serving it as a ROS action
+*/
 
 // ROS
 #include <ros/ros.h>
@@ -56,6 +59,7 @@
 #include <moveit/task_constructor/solvers/cartesian_path.h>
 #include <moveit/task_constructor/solvers/pipeline_planner.h>
 #include <moveit_task_constructor_msgs/ExecuteTaskSolutionAction.h>
+#include <moveit_task_constructor_msgs/PickPlacePlanningAction.h>
 #include <moveit/task_constructor/stages/generate_place_pose_subframe.h>
 
 #include <actionlib/client/simple_action_client.h>
@@ -75,9 +79,7 @@ public:
 	PickPlaceTask(const std::string& task_name, const ros::NodeHandle& nh);
 	~PickPlaceTask() = default;
 
-	void loadParameters();
-
-	void init(const std::string& robot_name, const std::string& object_name, geometry_msgs::PoseStamped object_target_pose, const std::string& object_frame_to_place);
+	void init(const moveit_task_constructor_msgs::PickPlacePlanningGoalConstPtr& goal);
 
 	bool plan();
 

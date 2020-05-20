@@ -30,6 +30,9 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************/
 
+/* Author: Henning Kayser, Simon Goldstein, Artur Istvan Karoly
+   Desc:   Task definition for serving it as a ROS action
+*/
 
 #include <moveit_task_constructor_demo/pick_place_task_for_action.h>
 
@@ -38,54 +41,49 @@ constexpr char LOGNAME[] = "pick_place_task";
 PickPlaceTask::PickPlaceTask(const std::string& task_name, const ros::NodeHandle& nh)
   : nh_(nh), task_name_(task_name), execute_("execute_task_solution", true) {}
 
-void PickPlaceTask::loadParameters() {
-	/****************************************************
-	 *                                                  *
-	 *               Load Parameters                    *
-	 *                                                  *
-	 ***************************************************/
-	ROS_INFO_NAMED(LOGNAME, "Loading task parameters");
+void PickPlaceTask::init(const moveit_task_constructor_msgs::PickPlacePlanningGoalConstPtr& goal) {
+	ROS_INFO_NAMED(LOGNAME, "Initializing task pipeline");
 
-	// Predefined pose targets
+	/************************
+	 Initialize parameters:
+	************************/
+
+	// Constants:
 	hand_open_pose_ = "open";
 	hand_close_pose_ = "close";
 	arm_home_pose_ = "home";
 
-	// Assembly name
-	assembly_name_ = "wrs_assembly_1";
+	place_surface_offset_ = 0.0001;
 
-	// Target object
-	surface_link_ = "tray_center"; //!!!!!
+	// From ROS action goal:
+    arm_group_name_ = goal->robot;
+    object_name_ = goal->object_name;
+	assembly_name_ = goal->assembly_name;
+    place_pose_ = goal->object_target_pose;
+    object_subframe_to_place_ = goal->object_frame_to_place;
+
+	surface_link_ = goal->surface_link;
 	support_surfaces_ = { surface_link_ };
 
-	// Pick/Place metrics  //!!!!
-	approach_object_min_dist_ = 0.1;
-	approach_object_max_dist_ = 0.15;
-	lift_object_min_dist_ = 0.1;
-	lift_object_max_dist_ = 0.15;
-	place_surface_offset_ = 0.0001;
-}
+	approach_object_min_dist_ = goal->approach_object_min_dist;
+	approach_object_max_dist_ = goal->approach_object_max_dist;
+	lift_object_min_dist_ = goal->lift_object_min_dist;
+	lift_object_max_dist_ = goal->lift_object_max_dist;
 
-void PickPlaceTask::init(const std::string& robot_name, const std::string& object_name, geometry_msgs::PoseStamped object_target_pose, const std::string& object_frame_to_place) {
-	ROS_INFO_NAMED(LOGNAME, "Initializing task pipeline");
-
-    arm_group_name_ = robot_name;
-    object_name_ = object_name;
-    place_pose_ = object_target_pose;
-    object_subframe_to_place_ = object_frame_to_place;
-
-    // Planning group properties
+    // Derived parameters:
     moveit::planning_interface::MoveGroupInterface group(arm_group_name_);
     hand_group_name_ = arm_group_name_ + "_robotiq_85";
-    // eef_name_ = group.getEndEffector();
-    eef_name_ = "b_bot_tip";
+    eef_name_ = arm_group_name_ + "_tip";
     hand_frame_ = hand_group_name_ + "_tip_link";
     world_frame_ = "world";
 
 	const std::string object = object_name_;
 
+	/************************
+	 Create MTC task:
+	************************/
+
 	// Reset ROS introspection before constructing the new object
-	// TODO(henningkayser): verify this is a bug, fix if possible
 	task_.reset();
 	task_.reset(new moveit::task_constructor::Task());
 
@@ -328,11 +326,13 @@ void PickPlaceTask::init(const std::string& robot_name, const std::string& objec
   ---- *          Generate Place Pose                       *
 		 *****************************************************/
 		{
-			auto stage = std::make_unique<stages::GeneratePlacePoseSubframe>("generate place pose");
+			// auto stage = std::make_unique<stages::GeneratePlacePoseSubframe>("generate place pose");
+			auto stage = std::make_unique<stages::GeneratePlacePose>("generate place pose");
 			stage->properties().configureInitFrom(Stage::PARENT, { "ik_frame" });
 			stage->properties().set("marker_ns", "place_pose");
-			stage->properties().set("subframe", object_subframe_to_place_);
+			// stage->properties().set("subframe", object_subframe_to_place_);
 			stage->setObject(object);
+			stage->setSubframe(object_subframe_to_place_);
 
 
 			// geometry_msgs::PoseStamped p;
