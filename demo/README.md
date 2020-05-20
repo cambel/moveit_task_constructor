@@ -18,19 +18,55 @@ A demo pick-place planning using the o2ac scene
 
 Start the o2ac demo scene in a terminal:
 
-`roslaunch o2ac_moveit_config demo.launch`
+```
+roslaunch o2ac_moveit_config demo.launch
+```
 
 In an other terminal use the following command to spawn an object:
 
-`roslaunch moveit_task_constructor_demo o2ac_demo.launch spawn:=true`
+```
+roslaunch moveit_task_constructor_demo o2ac_demo.launch spawn:=true
+```
 
 This node uses the information from `config/o2ac_config.yaml` Specify the `assembly_name`, the `object_name`, the `object_reference_frame` and the `object pose` (x,y,z,r,p,y) to spawn the object.
 (First spawn the base plate somwhere in the workspace, then spawn the L plate in the tray).
 
 If both the base and the L plate are in the scene, and the `o2ac_config.yaml` is filled with the info of the object to be grasped call the o2ac_demo launch file again without the spawn argument to plan:
 
-`roslaunch moveit_task_constructor_demo o2ac_demo.launch`
+```
+roslaunch moveit_task_constructor_demo o2ac_demo.launch
+```
 
+
+To visualize the plans add the Motion Planning Tasks plugin in RViz and for the Task Solution Topic select /o2ac_demo/solution
+
+If the planning was successful, you should be able to visualize the plans by selecting `pick_place_task` in the Motion Planning Tasks window and then clicking on the individual solutions on the right.
+
+# Pick-place planning action server
+
+An action server providing an action for the motion planning of a pick-place task. The action definition can be found in `msgs/action/PickPlacePlanning.action`
+
+## Usage
+
+First start the o2ac demo scene in a terminal:
+
+```
+roslaunch o2ac_moveit_config demo.launch
+```
+
+In an other terminal use the o2ac demo node to spawn objects:
+
+```
+roslaunch moveit_task_constructor_demo o2ac_demo.launch spawn:=true
+```
+
+After the objects are loaded in the scene, start the action server with:
+
+```
+rosrun moveit_task_constructoremo pick_place_planning_action_server 
+```
+
+When the server started, send goals to the `/pick_place_planning` action topic. 
 
 To visualize the plans add the Motion Planning Tasks plugin in RViz and for the Task Solution Topic select /o2ac_demo/solution
 

@@ -30,6 +30,9 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************/
 
+/* Author: Henning Kayser, Simon Goldstein, Artur Istvan Karoly
+   Desc:   A demo to show MoveIt Task Constructor in action adapted for o2ac scene
+*/
 
 // ROS
 #include <ros/ros.h>

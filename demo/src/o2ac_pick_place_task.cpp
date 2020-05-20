@@ -30,8 +30,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************/
 
-/* Author: Henning Kayser, Simon Goldstein
-   Desc:   A demo to show MoveIt Task Constructor in action
+/* Author: Henning Kayser, Simon Goldstein, Artur Istvan Karoly
+   Desc:   A demo to show MoveIt Task Constructor in action adapted for o2ac scene
 */
 
 #include <moveit_task_constructor_demo/o2ac_pick_place_task.h>
