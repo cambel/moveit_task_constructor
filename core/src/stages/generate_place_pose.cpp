@@ -52,7 +52,7 @@ namespace stages {
 GeneratePlacePose::GeneratePlacePose(const std::string& name) : GeneratePose(name) {
 	auto& p = properties();
 	p.declare<std::string>("object");
-	p.declare<std::string>("subframe");
+	p.declare<std::string>("subframe","","");
 	p.declare<geometry_msgs::PoseStamped>("ik_frame");
 }
 
@@ -108,7 +108,7 @@ void GeneratePlacePose::compute() {
 	bool* subframe_exists = new bool;
 	Eigen::Isometry3d object_to_ik;
 
-	if (use_subframe)
+	if (props.get<std::string>("subframe") != "")
 	{
 		std::string attach_link_name = object->getAttachedLink()->getName();
 		const Eigen::Isometry3d& subframe_pose_relative_to_attach_link = object->getSubframeTransform(props.get<std::string>("subframe"), subframe_exists);

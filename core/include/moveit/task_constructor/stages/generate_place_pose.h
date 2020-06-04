@@ -59,13 +59,10 @@ public:
 	void setSubframe(const std::string& subframe)
 	{
 		setProperty("subframe", subframe);
-		use_subframe = true;
 	}
 
 protected:
 	void onNewSolution(const SolutionBase& s) override;
-
-	bool use_subframe = false;
 };
 }  // namespace stages
 }  // namespace task_constructor
