@@ -2,14 +2,9 @@
 <launch>
   <!-- Run MTC pick and place -->
 
-  <arg name="spawn" default="false" />
-
   <rosparam command="load" file="$(find moveit_task_constructor_demo)/config/o2ac_config.yaml" ns="o2ac_demo"/>
 
-  <node if="$(arg spawn)" name="spawn_object" pkg="moveit_task_constructor_demo" type="spawn_object.py">
-  </node>
-
-  <node unless="$(arg spawn)" name="o2ac_demo" pkg="moveit_task_constructor_demo" type="o2ac_demo" output="screen">
+  <node name="o2ac_demo" pkg="moveit_task_constructor_demo" type="o2ac_demo" output="screen">
     <param name="execute" value="false" />
   </node>
 </launch>
