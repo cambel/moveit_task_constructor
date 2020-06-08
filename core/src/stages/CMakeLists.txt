@@ -12,7 +12,6 @@ add_library(${PROJECT_NAME}_stages
 	${PROJECT_INCLUDE}/stages/compute_ik.h
 	${PROJECT_INCLUDE}/stages/passthrough.h
 	${PROJECT_INCLUDE}/stages/predicate_filter.h
-	${PROJECT_INCLUDE}/stages/generate_place_pose_subframe.h
 
 	${PROJECT_INCLUDE}/stages/connect.h
 	${PROJECT_INCLUDE}/stages/move_to.h
@@ -34,7 +33,6 @@ add_library(${PROJECT_NAME}_stages
 	compute_ik.cpp
 	passthrough.cpp
 	predicate_filter.cpp
-	generate_place_pose_subframe.cpp
 
 	connect.cpp
 	move_to.cpp

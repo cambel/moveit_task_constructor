@@ -60,7 +60,6 @@
 #include <moveit/task_constructor/solvers/pipeline_planner.h>
 #include <moveit_task_constructor_msgs/ExecuteTaskSolutionAction.h>
 #include <moveit_task_constructor_msgs/PickPlacePlanningAction.h>
-#include <moveit/task_constructor/stages/generate_place_pose_subframe.h>
 
 #include <actionlib/client/simple_action_client.h>
 #include <actionlib/server/simple_action_server.h>

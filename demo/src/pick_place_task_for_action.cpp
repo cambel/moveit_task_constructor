@@ -57,10 +57,11 @@ void PickPlaceTask::init(const moveit_task_constructor_msgs::PickPlacePlanningGo
 
 	// From ROS action goal:
     arm_group_name_ = goal->robot;
+	hand_group_name_ = goal->hand_group_name;
     object_name_ = goal->object_name;
-	assembly_name_ = goal->assembly_name;
+	assembly_name_ = goal->grasp_parameter_location;
     place_pose_ = goal->object_target_pose;
-    object_subframe_to_place_ = goal->object_frame_to_place;
+    object_subframe_to_place_ = goal->object_subframe_to_place;
 
 	surface_link_ = goal->surface_link;
 	support_surfaces_ = { surface_link_ };
@@ -72,7 +73,6 @@ void PickPlaceTask::init(const moveit_task_constructor_msgs::PickPlacePlanningGo
 
     // Derived parameters:
     moveit::planning_interface::MoveGroupInterface group(arm_group_name_);
-    hand_group_name_ = arm_group_name_ + "_robotiq_85";
     eef_name_ = arm_group_name_ + "_tip";
     hand_frame_ = hand_group_name_ + "_tip_link";
     world_frame_ = "world";

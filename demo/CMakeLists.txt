@@ -54,6 +54,12 @@ target_link_libraries(alternative_path_costs ${catkin_LIBRARIES})
 add_executable(ik_clearance_cost src/ik_clearance_cost.cpp)
 target_link_libraries(ik_clearance_cost ${catkin_LIBRARIES})
 
+add_executable(pick_place_planning_action_server src/pick_place_planning_action_server.cpp)
+target_link_libraries(pick_place_planning_action_server
+  pick_place_task_for_action
+  ${catkin_LIBRARIES}
+)
+
 install(TARGETS cartesian modular pick_place_demo
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}

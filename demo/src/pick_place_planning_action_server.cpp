@@ -94,27 +94,6 @@ int main(int argc, char** argv) {
 	ros::AsyncSpinner spinner(1);
 	spinner.start();
 
-	// ros::Duration(1.0).sleep();  // Wait for ApplyPlanningScene service
-	// moveit::planning_interface::PlanningSceneInterface psi;
-	// ros::NodeHandle pnh("~");
-
-	// // Construct and run pick/place task
-	// o2ac_demo::PickPlaceTask pick_place_task("pick_place_task", nh);
-	// pick_place_task.loadParameters();
-	// pick_place_task.init();
-	// if (pick_place_task.plan()) {
-	// 	ROS_INFO_NAMED(LOGNAME, "Planning succeded");
-	// 	if (pnh.param("execute", false)) {
-	// 		pick_place_task.execute();
-	// 		ROS_INFO_NAMED(LOGNAME, "Execution complete");
-	// 	} else {
-	// 		ROS_INFO_NAMED(LOGNAME, "Execution disabled");
-	// 	}
-	// } else {
-	// 	ROS_INFO_NAMED(LOGNAME, "Planning failed");
-	// }
-
-	// Keep introspection alive
 	ros::waitForShutdown();
 	return 0;
 }
