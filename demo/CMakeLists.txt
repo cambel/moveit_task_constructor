@@ -30,6 +30,13 @@ add_library(pick_place_task OBJECT src/pick_place_task.cpp)
 
 add_executable(pick_place_demo src/pick_place_demo.cpp $<TARGET_OBJECTS:pick_place_task>)
 target_link_libraries(pick_place_demo ${catkin_LIBRARIES})
+#--- o2ac/1
+add_executable(modular_pick_hold src/modular_pick_hold.cpp)
+target_link_libraries(modular_pick_hold ${catkin_LIBRARIES})
+
+add_library(${PROJECT_NAME}_lib src/pick_place_task.cpp)
+set_target_properties(${PROJECT_NAME}_lib PROPERTIES OUTPUT_NAME moveit_task_constructor_demo_pick_place)
+add_dependencies(${PROJECT_NAME}_lib ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 #--- o2ac
 add_library(o2ac_lib src/o2ac_pick_place_task.cpp)
