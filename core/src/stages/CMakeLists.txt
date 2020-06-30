@@ -1,6 +1,7 @@
 add_library(${PROJECT_NAME}_stages
 	${PROJECT_INCLUDE}/stages/modify_planning_scene.h
 	${PROJECT_INCLUDE}/stages/fix_collision_objects.h
+	${PROJECT_INCLUDE}/stages/dummy.h
 
 	${PROJECT_INCLUDE}/stages/current_state.h
 	${PROJECT_INCLUDE}/stages/fixed_state.h
@@ -23,6 +24,7 @@ add_library(${PROJECT_NAME}_stages
 
 	modify_planning_scene.cpp
 	fix_collision_objects.cpp
+	dummy.cpp
 
 	current_state.cpp
 	fixed_state.cpp
