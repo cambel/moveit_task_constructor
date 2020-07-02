@@ -90,6 +90,22 @@ void GeneratePlacePose::compute() {
 	const moveit::core::RobotState& robot_state = scene->getCurrentState();
 	const auto& props = properties();
 
+	// DEBUGGING
+	ROS_WARN_STREAM_NAMED("GeneratePlacePose", "Printing world objects:");
+	for (auto id : scene->getWorld()->getObjectIds())
+		ROS_WARN_STREAM_NAMED("GeneratePlacePose", id);
+	ROS_WARN_STREAM_NAMED("GeneratePlacePose", "Printing attached objects:");
+	std::vector<const moveit::core::AttachedBody *> v;
+	scene->getCurrentState().getAttachedBodies(v);
+	for (auto body : v)
+	{
+		ROS_WARN_STREAM_NAMED("GeneratePlacePose", body->getName());
+		ROS_WARN_STREAM_NAMED("GeneratePlacePose", "parent link: " << body->getAttachedLinkName());
+		ROS_WARN_STREAM_NAMED("GeneratePlacePose", "transform from parent link: " << body->getFixedTransforms()[0].matrix());
+		ROS_WARN_STREAM_NAMED("GeneratePlacePose", "global transform: " << (robot_state.getGlobalLinkTransform(body->getAttachedLinkName())*body->getFixedTransforms()[0]).matrix());
+	}
+	
+
 	const moveit::core::AttachedBody* object = robot_state.getAttachedBody(props.get<std::string>("object"));
 	// current object_pose w.r.t. planning frame
 	const Eigen::Isometry3d& orig_object_pose = object->getGlobalCollisionBodyTransforms()[0];
@@ -98,7 +114,12 @@ void GeneratePlacePose::compute() {
 	Eigen::Isometry3d target_pose;
 	tf::poseMsgToEigen(pose_msg.pose, target_pose);
 	// target pose w.r.t. planning frame
-	scene->getTransforms().transformPose(pose_msg.header.frame_id, target_pose, target_pose);
+	// scene->getTransforms().transformPose(pose_msg.header.frame_id, target_pose, target_pose);
+	const Eigen::Isometry3d& t = scene->getFrameTransform(pose_msg.header.frame_id);
+	target_pose = t * target_pose;
+	ROS_WARN_STREAM_NAMED("GeneratePlacePose", "Looked up transform from " << pose_msg.header.frame_id << ", found:");
+	ROS_WARN_STREAM_NAMED("GeneratePlacePose", pose_msg.pose.position.x  << ", " << pose_msg.pose.position.y << ", " << pose_msg.pose.position.z);
+	ROS_WARN_STREAM_NAMED("GeneratePlacePose", target_pose.matrix());
 
 	const geometry_msgs::PoseStamped& ik_frame_msg = props.get<geometry_msgs::PoseStamped>("ik_frame");
 	Eigen::Isometry3d ik_frame;
