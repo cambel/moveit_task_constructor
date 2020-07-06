@@ -95,31 +95,42 @@ void LoadGraspPose::compute() {
 	std::string assembly_name = props.get<std::string>("assembly");
 	target_pose_msg.header.frame_id = object_name;
 
-	nh.getParam("/" + assembly_name + "/" + object_name, grasps);
-    for (int32_t i = 0; i < grasps.size(); ++i){
-		grasp_name = "grasp_" + std::to_string(i+1);
-		target_pose_msg.pose.position.x = grasps[grasp_name]["position"][0];
-		target_pose_msg.pose.position.y = grasps[grasp_name]["position"][1];
-		target_pose_msg.pose.position.z = grasps[grasp_name]["position"][2];
-		target_pose_msg.pose.orientation.x = grasps[grasp_name]["orientation"][0];
-		target_pose_msg.pose.orientation.y = grasps[grasp_name]["orientation"][1];
-		target_pose_msg.pose.orientation.z = grasps[grasp_name]["orientation"][2];
-		target_pose_msg.pose.orientation.w = grasps[grasp_name]["orientation"][3];
+	std::string param_name = "/" + assembly_name + "/" + object_name;
+	const std::string msg = "The requested param '" + param_name + "' cannot be found on the ROS parameter server!";
+	if (nh.getParam(param_name, grasps)) { // CHECK IF PARAM EXISTS
+		for (int32_t i = 0; i < grasps.size(); ++i){
+			grasp_name = "grasp_" + std::to_string(i+1);
+			target_pose_msg.pose.position.x = grasps[grasp_name]["position"][0];
+			target_pose_msg.pose.position.y = grasps[grasp_name]["position"][1];
+			target_pose_msg.pose.position.z = grasps[grasp_name]["position"][2];
+			target_pose_msg.pose.orientation.x = grasps[grasp_name]["orientation"][0];
+			target_pose_msg.pose.orientation.y = grasps[grasp_name]["orientation"][1];
+			target_pose_msg.pose.orientation.z = grasps[grasp_name]["orientation"][2];
+			target_pose_msg.pose.orientation.w = grasps[grasp_name]["orientation"][3];
 
+			InterfaceState state(scene);
+			state.properties().set("target_pose", target_pose_msg);
+			props.exposeTo(state.properties(), { "pregrasp", "grasp" });
+
+			SubTrajectory trajectory;
+			trajectory.setCost(0.0);
+			trajectory.setComment(grasp_name);
+
+			// add frame at target pose
+			rviz_marker_tools::appendFrame(trajectory.markers(), target_pose_msg, 0.1, "grasp frame");
+
+			spawn(std::move(state), std::move(trajectory));
+		}
+	} else if (storeFailures()) {
 		InterfaceState state(scene);
-		state.properties().set("target_pose", target_pose_msg);
-		props.exposeTo(state.properties(), { "pregrasp", "grasp" });
-
 		SubTrajectory trajectory;
-		trajectory.setCost(0.0);
-		trajectory.setComment(grasp_name);
-
-		// add frame at target pose
-		rviz_marker_tools::appendFrame(trajectory.markers(), target_pose_msg, 0.1, "grasp frame");
-
+		trajectory.markAsFailure();
+		trajectory.setComment(msg);
 		spawn(std::move(state), std::move(trajectory));
-    }
-}
+	} else {
+		ROS_WARN_STREAM_NAMED("LoadGraspPose", msg);
+	}
+	}
 }
 }
 }

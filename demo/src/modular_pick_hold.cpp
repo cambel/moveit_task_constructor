@@ -64,6 +64,9 @@
 #include <actionlib/server/simple_action_server.h>
 #include <rosparam_shortcuts/rosparam_shortcuts.h>
 
+#include <cmath>
+#include <tf/transform_listener.h>
+
 namespace mtc_modules {
 constexpr char LOGNAME[] = "mtc_modules";
 using namespace moveit::task_constructor;
@@ -87,28 +90,35 @@ class Modules_Planner{
 		Modules_Planner(): pick_planning_server(Modules_Planner::nh, "pick_planning", boost::bind(&Modules_Planner::pick_planning_server_cb, this, _1), false),
 		place_planning_server(Modules_Planner::nh, "place_planning", boost::bind(&Modules_Planner::place_planning_server_cb, this, _1), false),
 		pick_place_planning_server(Modules_Planner::nh, "pick_place_planning", boost::bind(&Modules_Planner::pick_place_planning_server_cb, this, _1), false),
-		fastening_planning_server(Modules_Planner::nh, "fastening_planning", boost::bind(&Modules_Planner::fastening_planning_server_cb, this, _1), false)
+		fastening_planning_server(Modules_Planner::nh, "fastening_planning", boost::bind(&Modules_Planner::fastening_planning_server_cb, this, _1), false),
+		sub_assembly_planning_server(Modules_Planner::nh, "sub_assembly_planning", boost::bind(&Modules_Planner::sub_assembly_planning_server_cb, this, _1), false)
     	{
 			pick_place_planning_server.start();
         	pick_planning_server.start();
 			place_planning_server.start();
 			fastening_planning_server.start();
+			sub_assembly_planning_server.start();
     	}
 
 		void init();
 
 		std::unique_ptr<SerialContainer> Pick_Object(const std::string& object);
 		std::unique_ptr<SerialContainer> Lift_Object(const std::string& object);
-		std::unique_ptr<SerialContainer> Pick_and_Lift(const std::string& object, const std::string& arm_group_name);
+		std::unique_ptr<SerialContainer> Pick_and_Lift(const std::string& object, const std::string& arm_group_name, bool this_is_start=true);
 		std::unique_ptr<SerialContainer> Place_Object(const std::string& object, const geometry_msgs::PoseStamped& target_pose, const std::string& object_subframe_to_place="");
-		std::unique_ptr<SerialContainer> Release_Object_and_Retreat(const std::string& object);
-		std::unique_ptr<SerialContainer> Place(const std::string& object, const geometry_msgs::PoseStamped& target_pose, const std::string& arm_group_name, bool release_object=true, const std::string& object_subframe_to_place="");
-		std::unique_ptr<SerialContainer> Fasten(const std::string& object, const geometry_msgs::PoseStamped& target_pose, const std::string& arm_group_name, const std::string& object_subframe_to_place="");
+		std::unique_ptr<SerialContainer> Place_Object(const std::string& object, const std::vector<geometry_msgs::PoseStamped>& target_pose, const std::string& object_subframe_to_place="");
+		std::unique_ptr<SerialContainer> Release_Object_and_Retreat(const std::string& object, const std::string& pose="");
+		std::unique_ptr<SerialContainer> Release_and_Retreat(const std::string& object, const std::string& arm_group_name, const std::string& pose="");
+		std::unique_ptr<SerialContainer> Place(const std::string& object, const geometry_msgs::PoseStamped& target_pose, const std::string& arm_group_name, bool release_object=true, const std::string& object_subframe_to_place="", bool this_is_start=true);
+		std::unique_ptr<SerialContainer> Fasten(const std::string& object, const geometry_msgs::PoseStamped& target_pose, const std::string& arm_group_name, const std::string& object_subframe_to_place="", bool this_is_start=true, const std::string& container_name="Fasten");
+		std::unique_ptr<SerialContainer> Fasten(const std::string& object, const std::vector<geometry_msgs::PoseStamped>& target_pose, const std::string& arm_group_name, const std::string& object_subframe_to_place="", bool this_is_start=true, const std::string& container_name="Fasten");
 		std::unique_ptr<SerialContainer> Pick_Place(const std::string& object, const geometry_msgs::PoseStamped& target_pose, const std::string& arm_group_name, bool release_object=true, const std::string& object_subframe_to_place="");
 		std::unique_ptr<SerialContainer> Pick_Place_with_Regrasp(const std::string& object, const geometry_msgs::PoseStamped& target_pose, const std::string& pick_arm_group_name, const std::string& place_arm_group_name, bool release_object=true, const std::string& object_subframe_to_place="");
-		std::unique_ptr<Alternatives> Pick_and_Lift_Alternatives(const std::string& object);
-		std::unique_ptr<Alternatives> Place_Alternatives(const std::string& object, const geometry_msgs::PoseStamped& target_pose, bool release_object=true, const std::string& object_subframe_to_place="");
-		std::unique_ptr<Alternatives> Fasten_Alternatives(const std::string& object, const geometry_msgs::PoseStamped& target_pose, const std::string& object_subframe_to_place="");
+		std::unique_ptr<Alternatives> Pick_and_Lift_Alternatives(const std::string& object, bool this_is_start=true);
+		std::unique_ptr<Alternatives> Release_and_Retreat_Alternatives(const std::string& object, const std::string& pose="");
+		std::unique_ptr<Alternatives> Place_Alternatives(const std::string& object, const geometry_msgs::PoseStamped& target_pose, bool release_object=true, const std::string& object_subframe_to_place="", bool this_is_start=true);
+		std::unique_ptr<Alternatives> Fasten_Alternatives(const std::string& object, const geometry_msgs::PoseStamped& target_pose, const std::string& object_subframe_to_place="", bool this_is_start=true, const std::string& container_name="Fasten");
+		std::unique_ptr<Alternatives> Fasten_Alternatives(const std::string& object, const std::vector<geometry_msgs::PoseStamped>& target_pose, const std::string& object_subframe_to_place="", bool this_is_start=true, const std::string& container_name="Fasten");
 		std::unique_ptr<Alternatives> Pick_Place_Alternatives(const std::string& object, const geometry_msgs::PoseStamped& target_pose, bool release_object=true, const std::string& object_subframe_to_place="");
 		std::unique_ptr<Fallbacks> Pick_Place_Fallback(const std::string& object, const geometry_msgs::PoseStamped& target_pose, bool release_object=true, const std::string& object_subframe_to_place="");
 
@@ -116,6 +126,7 @@ class Modules_Planner{
 		void createPick(const std::string& object);
 		void createPlace(const std::string& object, const geometry_msgs::PoseStamped& target_pose, bool release_object=true, const std::string& object_subframe_to_place="");
 		void createFasten(const std::string& object, const geometry_msgs::PoseStamped& target_pose, const std::string& object_subframe_to_place="");
+		void createSubAssembly(const std::string& object, const geometry_msgs::PoseStamped& target_pose, bool release_object=true, const std::string& object_subframe_to_place="");
 
 		void pick_planning_server_cb(const moveit_task_constructor_msgs::PickObjectGoalConstPtr& goal){
 			bool success = false;
@@ -274,9 +285,59 @@ class Modules_Planner{
 			pick_place_planning_server.setSucceeded(pick_place_result);
 		}
 
+		void sub_assembly_planning_server_cb(const moveit_task_constructor_msgs::PickPlaceWithRegraspGoalConstPtr& goal){
+			bool success = false;
+			moveit_task_constructor_msgs::Solution sol;
+			std::string temp_grasp_parameter_location = grasp_parameter_location;
+			std::string temp_lift_direction_reference_frame = lift_direction_reference_frame;
+			std::vector<double> temp_lift_direction = lift_direction;
+			std::string temp_approach_place_direction_reference_frame = approach_place_direction_reference_frame;
+			std::vector<double> temp_approach_place_direction = approach_place_direction;
+
+			if (goal->grasp_parameter_location != ""){
+				grasp_parameter_location = goal->grasp_parameter_location;
+			}
+
+			if (goal->lift_direction_reference_frame != "" && !goal->lift_direction.empty()){
+				lift_direction_reference_frame = goal->lift_direction_reference_frame;
+				lift_direction = goal->lift_direction;
+			}
+
+			if (goal->approach_place_direction_reference_frame != "" && !goal->approach_place_direction.empty()){
+				approach_place_direction_reference_frame = goal->approach_place_direction_reference_frame;
+				approach_place_direction = goal->approach_place_direction;
+			}
+
+			createSubAssembly(goal->object_name, goal->object_target_pose, goal->release_object_after_place, goal->object_subframe_to_place);
+
+			try {
+				success = task_->plan(10);
+				if (success && task_->numSolutions() != 0){
+					ROS_INFO_NAMED(LOGNAME, "Planning succeeded");
+					task_->solutions().front()->fillMessage(sol);
+					// task.introspection().publishSolution(*task.solutions().front());
+				} else{
+					ROS_INFO_NAMED(LOGNAME, "Planning failed");
+				}
+			} catch (const moveit::task_constructor::InitStageException& ex) {
+				std::cerr << "planning failed with exception" << std::endl << ex;
+			}
+
+			pick_place_result.success = success;
+			pick_place_result.solution = sol;
+
+			grasp_parameter_location = temp_grasp_parameter_location;
+			lift_direction_reference_frame = temp_lift_direction_reference_frame;
+			lift_direction = temp_lift_direction;
+			approach_place_direction_reference_frame = temp_approach_place_direction_reference_frame;
+			approach_place_direction = temp_approach_place_direction;
+			sub_assembly_planning_server.setSucceeded(pick_place_result);
+		}
+
 	private:
 		ros::NodeHandle nh;
 		actionlib::SimpleActionServer<moveit_task_constructor_msgs::PickPlaceWithRegraspAction> pick_place_planning_server;
+		actionlib::SimpleActionServer<moveit_task_constructor_msgs::PickPlaceWithRegraspAction> sub_assembly_planning_server;
 		actionlib::SimpleActionServer<moveit_task_constructor_msgs::PickObjectAction> pick_planning_server;
 		actionlib::SimpleActionServer<moveit_task_constructor_msgs::PlaceObjectAction> place_planning_server;
 		actionlib::SimpleActionServer<moveit_task_constructor_msgs::PlaceObjectAction> fastening_planning_server;
@@ -323,6 +384,13 @@ class Modules_Planner{
 		// Placing object
 		std::string approach_place_direction_reference_frame;
 		std::vector<double> approach_place_direction;
+
+		// Retreat after place
+		std::string retreat_direction_reference_frame;
+		std::vector<double> retreat_direction;
+
+		// Support surfaces
+		std::vector<std::string> support_surfaces;
 };
 
 void Modules_Planner::init(){
@@ -339,6 +407,9 @@ void Modules_Planner::init(){
 	errors += !rosparam_shortcuts::get(LOGNAME, pnh, "lift_direction", lift_direction);
 	errors += !rosparam_shortcuts::get(LOGNAME, pnh, "approach_place_direction_reference_frame", approach_place_direction_reference_frame);
 	errors += !rosparam_shortcuts::get(LOGNAME, pnh, "approach_place_direction", approach_place_direction);
+	errors += !rosparam_shortcuts::get(LOGNAME, pnh, "retreat_direction_reference_frame", retreat_direction_reference_frame);
+	errors += !rosparam_shortcuts::get(LOGNAME, pnh, "retreat_direction", retreat_direction);
+	errors += !rosparam_shortcuts::get(LOGNAME, pnh, "support_surfaces", support_surfaces);
 	rosparam_shortcuts::shutdownIfError(LOGNAME, errors);
 
 	// Init Cartesian planner
@@ -377,11 +448,13 @@ void Modules_Planner::init(){
 	hand_frame = hand_frames[0];
 
 	// Internal stage pointer for hooks
+	current_state_stage = nullptr;
 	attach_object_stage = nullptr;
+	lift_object_stage = nullptr;
 }
 
 std::unique_ptr<SerialContainer> Modules_Planner::Pick_Object(const std::string& object){
-	auto c = std::make_unique<SerialContainer>("Pick Object " + group);
+	auto c = std::make_unique<SerialContainer>("Grasp '" + object + "' with " + group);
 
 	/****************************************************
 	 *                                                  *
@@ -423,8 +496,8 @@ std::unique_ptr<SerialContainer> Modules_Planner::Pick_Object(const std::string&
 
 		// Set hand forward direction
 		geometry_msgs::Vector3Stamped vec;
-		vec.header.frame_id = hand_frame;
-		vec.vector.x = 0.3;
+		vec.header.frame_id = hand_frame;  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Like retreat direction
+		vec.vector.x = 1.0;
 		stage->setDirection(vec);
 		c->insert(std::move(stage));
 	}
@@ -437,7 +510,6 @@ std::unique_ptr<SerialContainer> Modules_Planner::Pick_Object(const std::string&
 	{
 		// Load grasp pose
 		auto stage = std::make_unique<stages::LoadGraspPose>("load grasp pose");
-		// stage->properties().configureInitFrom(Stage::PARENT);
 		stage->properties().set("marker_ns", "grasp_pose");
 		stage->setPreGraspPose("open");
 		stage->setAssembly(grasp_parameter_location);
@@ -452,7 +524,6 @@ std::unique_ptr<SerialContainer> Modules_Planner::Pick_Object(const std::string&
 		wrapper->setIKFrame(hand_frame);
 		wrapper->properties().set("group", group);
 		wrapper->setEndEffector(group + "_tip");
-		// wrapper->properties().configureInitFrom(Stage::PARENT, { "eef", "group" });
 		wrapper->properties().configureInitFrom(Stage::INTERFACE, { "target_pose" });
 		c->insert(std::move(wrapper));
 	}
@@ -486,8 +557,8 @@ std::unique_ptr<SerialContainer> Modules_Planner::Pick_Object(const std::string&
 }
 
 std::unique_ptr<SerialContainer> Modules_Planner::Lift_Object(const std::string& object){
-	lift_object_stage = nullptr;
-	auto c = std::make_unique<SerialContainer>("Lift Object " + group);
+	// lift_object_stage = nullptr;
+	auto c = std::make_unique<SerialContainer>("Lift '" + object + "' with " + group);
 
 	/****************************************************
 	 *                                                  *
@@ -509,7 +580,7 @@ std::unique_ptr<SerialContainer> Modules_Planner::Lift_Object(const std::string&
 	 ***************************************************/
 	{
 		auto stage = std::make_unique<stages::ModifyPlanningScene>("allow collision (object,support)");
-		stage->allowCollisions({ object }, { "tray_center" }, true);                       // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!PARAM
+		stage->allowCollisions({ object }, support_surfaces, true);                       // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!PARAM
 		c->insert(std::move(stage));
 	}
 
@@ -520,7 +591,6 @@ std::unique_ptr<SerialContainer> Modules_Planner::Lift_Object(const std::string&
 	 ***************************************************/
 	{
 		auto stage = std::make_unique<stages::MoveRelative>("lift object", cartesian_planner);
-		//stage->properties().configureInitFrom(Stage::PARENT, { "group" });
 		stage->properties().set("group", group);
 		stage->setMinMaxDistance(0.1, 0.15);           // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!PARAMS
 		stage->setIKFrame(hand_frame);
@@ -543,7 +613,7 @@ std::unique_ptr<SerialContainer> Modules_Planner::Lift_Object(const std::string&
 	 ***************************************************/
 	{
 		auto stage = std::make_unique<stages::ModifyPlanningScene>("forbid collision (object,surface)");
-		stage->allowCollisions({ object }, { "tray_center" }, false);                   //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!PARAM
+		stage->allowCollisions({ object }, support_surfaces, false);                   //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!PARAM
 		lift_object_stage = stage.get();
 		c->insert(std::move(stage));
 	}
@@ -551,25 +621,31 @@ std::unique_ptr<SerialContainer> Modules_Planner::Lift_Object(const std::string&
 	return c;
 }
 
-std::unique_ptr<SerialContainer> Modules_Planner::Pick_and_Lift(const std::string& object, const std::string& arm_group_name){
+std::unique_ptr<SerialContainer> Modules_Planner::Pick_and_Lift(const std::string& object, const std::string& arm_group_name, bool this_is_start){
 	group = arm_group_name;
 	hand_group_name = group + "_robotiq_85";
 	hand_frame = hand_group_name + "_tip_link";
 	
-	auto c = std::make_unique<SerialContainer>("Pick Object " + group);
+	auto c = std::make_unique<SerialContainer>("Pick '" + object + "' with " + group);
 
 	/****************************************************
 	 *                                                  *
 	 *               Current State                      *
 	 *                                                  *
 	 ***************************************************/
-	current_state_stage = nullptr;  // Forward current_state on to grasp pose generator
+	// current_state_stage = nullptr;  // Forward current_state on to grasp pose generator
 	{
-		auto _current_state = std::make_unique<stages::CurrentState>("current state");
-
+		std::unique_ptr<moveit::task_constructor::stages::PredicateFilter> applicability_filter;
+		auto _current_state = std::make_unique<stages::CurrentState>("'before pick' state");
+		auto _dummy_state = std::make_unique<stages::Dummy>("'before pick' state");
+		_dummy_state->restrictDirection(PropagatingEitherWay::FORWARD);
+	
 		// Verify that object is not attached
-		auto applicability_filter =
-		    std::make_unique<stages::PredicateFilter>("applicability test", std::move(_current_state));
+		if (this_is_start){
+			applicability_filter = std::make_unique<stages::PredicateFilter>("applicability test", std::move(_current_state));
+		} else {
+			applicability_filter = std::make_unique<stages::PredicateFilter>("applicability test", std::move(_dummy_state));
+		}
 		applicability_filter->setPredicate([object](const SolutionBase& s, std::string& comment) {
 			if (s.start()->scene()->getCurrentState().hasAttachedBody(object)) {
 				comment = "object with id '" + object + "' is already attached and cannot be picked";
@@ -593,7 +669,7 @@ std::unique_ptr<SerialContainer> Modules_Planner::Pick_and_Lift(const std::strin
 }
 
 std::unique_ptr<SerialContainer> Modules_Planner::Place_Object(const std::string& object, const geometry_msgs::PoseStamped& target_pose, const std::string& object_subframe_to_place){
-	auto c = std::make_unique<SerialContainer>("Place Object " + group);
+	auto c = std::make_unique<SerialContainer>("Approach target pose for '" + object + "' with " + group);
 
 	/******************************************************
 	 *                                                    *
@@ -628,8 +704,7 @@ std::unique_ptr<SerialContainer> Modules_Planner::Place_Object(const std::string
 		stage->properties().set("marker_ns", "place_pose");
 		stage->properties().configureInitFrom(Stage::PARENT, { "ik_frame" });
 		stage->setObject(object);
-		// stage->setSubframe("panel_bearing/bottom_screw_hole_aligner_1");   //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-		stage->setSubframe(object_subframe_to_place);
+		stage->setSubframe(object_subframe_to_place);  // The subframe has to be named according to 'object_name/subframe_name' convention
 
         //place_pose_.pose.position.x -= place_surface_offset_;            //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 		stage->setPose(target_pose);
@@ -641,15 +716,68 @@ std::unique_ptr<SerialContainer> Modules_Planner::Place_Object(const std::string
 		wrapper->setIKFrame(hand_frame);
 		wrapper->properties().set("group", group);
 		wrapper->setEndEffector(group + "_tip");
-		// wrapper->properties().configureInitFrom(Stage::PARENT, { "eef", "group" });
 		wrapper->properties().configureInitFrom(Stage::INTERFACE, { "target_pose" });
 		c->insert(std::move(wrapper));
 	}
 	return c;
 }
 
-std::unique_ptr<SerialContainer> Modules_Planner::Release_Object_and_Retreat(const std::string& object){
-	auto c = std::make_unique<SerialContainer>("Release Object and Retreat " + group);
+std::unique_ptr<SerialContainer> Modules_Planner::Place_Object(const std::string& object, const std::vector<geometry_msgs::PoseStamped>& target_pose, const std::string& object_subframe_to_place){
+	auto c = std::make_unique<SerialContainer>("Approach target pose for '" + object + "' with " + group);
+
+	/******************************************************
+	 *                                                    *
+	 *          Lower Object                              *
+	 *                                                    *
+	 *****************************************************/
+	{
+		auto stage = std::make_unique<stages::MoveRelative>("lower object", cartesian_planner);
+		stage->properties().set("marker_ns", "lower_object");
+		stage->properties().set("link", hand_frame);
+		stage->properties().set("group", group);
+		stage->setMinMaxDistance(.03, .13);              //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+		// Set downward direction
+		geometry_msgs::Vector3Stamped vec;
+		vec.header.frame_id = approach_place_direction_reference_frame;
+		vec.vector.x = approach_place_direction[0];
+		vec.vector.y = approach_place_direction[1];
+		vec.vector.z = approach_place_direction[2];
+		stage->setDirection(vec);
+		current_state_stage = stage.get();
+		c->insert(std::move(stage));
+	}
+
+	/******************************************************
+	 *                                                    *
+	 *          Generate Place Pose                       *
+	 *                                                    *
+	 *****************************************************/
+	{
+		auto stage = std::make_unique<stages::GeneratePlacePose>("generate place pose");
+		stage->properties().set("marker_ns", "place_pose");
+		stage->properties().configureInitFrom(Stage::PARENT, { "ik_frame" });
+		stage->setObject(object);
+		stage->setSubframe(object_subframe_to_place);  // The subframe has to be named according to 'object_name/subframe_name' convention
+
+        //place_pose_.pose.position.x -= place_surface_offset_;            //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+		stage->setPose(target_pose);
+		stage->setMonitoredStage(attach_object_stage);  // Hook into attach_object_stage
+
+		// Compute IK
+		auto wrapper = std::make_unique<stages::ComputeIK>("place pose IK", std::move(stage));
+		wrapper->setMaxIKSolutions(2);
+		wrapper->setIKFrame(hand_frame);
+		wrapper->properties().set("group", group);
+		wrapper->setEndEffector(group + "_tip");
+		wrapper->properties().configureInitFrom(Stage::INTERFACE, { "target_pose" });
+		c->insert(std::move(wrapper));
+	}
+	return c;
+}
+
+std::unique_ptr<SerialContainer> Modules_Planner::Release_Object_and_Retreat(const std::string& object, const std::string& pose){
+	auto c = std::make_unique<SerialContainer>("Release '" + object + "' and retreat, " + group);
 
 	// /******************************************************
 	//  *                                                    *
@@ -699,36 +827,105 @@ std::unique_ptr<SerialContainer> Modules_Planner::Release_Object_and_Retreat(con
 		stage->properties().set("marker_ns", "retreat");
 		stage->properties().set("group", group);
 		geometry_msgs::Vector3Stamped vec;
-		vec.header.frame_id = hand_frame;
-		vec.vector.x = -1.0;
+		if (retreat_direction_reference_frame == ""){
+			vec.header.frame_id = hand_frame;
+			vec.vector.x = retreat_direction[0];
+			vec.vector.y = retreat_direction[1];
+			vec.vector.z = retreat_direction[2];
+		} else {
+			vec.header.frame_id = retreat_direction_reference_frame;
+			vec.vector.x = retreat_direction[0];
+			vec.vector.y = retreat_direction[1];
+			vec.vector.z = retreat_direction[2];
+		}
 		stage->setDirection(vec);
 		c->insert(std::move(stage));
+	}
+
+	if(pose != "") {
+		{
+			auto stage = std::make_unique<stages::MoveTo>("move to pose '" + pose + "'", sampling_planner);
+			stage->properties().set("group", group);
+			stage->setGoal(pose);
+			c->insert(std::move(stage));
+		}
 	}
 
 	return c;
 }
 
-std::unique_ptr<SerialContainer> Modules_Planner::Place(const std::string& object, const geometry_msgs::PoseStamped& target_pose, const std::string& arm_group_name, bool release_object, const std::string& object_subframe_to_place){
+std::unique_ptr<SerialContainer> Modules_Planner::Release_and_Retreat(const std::string& object, const std::string& arm_group_name, const std::string& pose){
 	group = arm_group_name;
 	hand_group_name = group + "_robotiq_85";
 	hand_frame = hand_group_name + "_tip_link";
 
 	std::string tem = hand_frame;
 	
-	auto c = std::make_unique<SerialContainer>("Place Object " + group);
+	auto c = std::make_unique<SerialContainer>("Release '" + object + "' and retreat, " + group);
 
 	/****************************************************
 	 *                                                  *
 	 *               Current State                      *
 	 *                                                  *
 	 ***************************************************/
-	current_state_stage = nullptr;  // Forward current_state on to grasp pose generator
 	{
-		auto _current_state = std::make_unique<stages::CurrentState>("current state");
+		auto _current_state = std::make_unique<stages::Dummy>("current state");
+		_current_state->restrictDirection(PropagatingEitherWay::FORWARD);
 
-		// Verify that object is not attached
+		// Verify that object is attached to the given planning group
 		auto applicability_filter =
 		    std::make_unique<stages::PredicateFilter>("applicability test", std::move(_current_state));
+		applicability_filter->setPredicate([object, tem](const SolutionBase& s, std::string& comment) {
+			if (s.start()->scene()->getCurrentState().hasAttachedBody(object)) {
+				if (s.start()->scene()->getCurrentState().getAttachedBody(object)->getAttachedLinkName() == tem){
+					return true;
+				} else {
+					comment = "object with id '" + object + "' is attached to a link other than the hand frame of this group";
+					return false;
+				}
+			} else {
+				comment = "object with id '" + object + "' is not attached so cannot be released";
+				return false;
+			}
+		});
+
+		c->insert(std::move(applicability_filter));
+	}
+
+	// Release and retreat
+	c->insert(std::move(Modules_Planner::Release_Object_and_Retreat(object, pose)));
+
+	return c;
+
+}
+
+std::unique_ptr<SerialContainer> Modules_Planner::Place(const std::string& object, const geometry_msgs::PoseStamped& target_pose, const std::string& arm_group_name, bool release_object, const std::string& object_subframe_to_place, bool this_is_start){
+	group = arm_group_name;
+	hand_group_name = group + "_robotiq_85";
+	hand_frame = hand_group_name + "_tip_link";
+
+	std::string tem = hand_frame;
+	
+	auto c = std::make_unique<SerialContainer>("Place '" + object + "' with " + group);
+
+	/****************************************************
+	 *                                                  *
+	 *               Current State                      *
+	 *                                                  *
+	 ***************************************************/
+	// current_state_stage = nullptr;  // Forward current_state on to grasp pose generator
+	{
+		std::unique_ptr<moveit::task_constructor::stages::PredicateFilter> applicability_filter;
+		auto _current_state = std::make_unique<stages::CurrentState>("current state");
+		auto _dummy_state = std::make_unique<stages::Dummy>("current state");
+		_dummy_state->restrictDirection(PropagatingEitherWay::FORWARD);
+
+		// Verify that object is attached
+		if (this_is_start){
+			applicability_filter = std::make_unique<stages::PredicateFilter>("applicability test", std::move(_current_state));
+		} else {
+			applicability_filter = std::make_unique<stages::PredicateFilter>("applicability test", std::move(_dummy_state));
+		}
 		applicability_filter->setPredicate([object, tem](const SolutionBase& s, std::string& comment) {
 			if (s.start()->scene()->getCurrentState().hasAttachedBody(object)) {
 				if (s.start()->scene()->getCurrentState().getAttachedBody(object)->getAttachedLinkName() == tem){
@@ -770,27 +967,35 @@ std::unique_ptr<SerialContainer> Modules_Planner::Place(const std::string& objec
 	return c;
 }
 
-std::unique_ptr<SerialContainer> Modules_Planner::Fasten(const std::string& object, const geometry_msgs::PoseStamped& target_pose, const std::string& arm_group_name, const std::string& object_subframe_to_place){
+std::unique_ptr<SerialContainer> Modules_Planner::Fasten(const std::string& object, const geometry_msgs::PoseStamped& target_pose, const std::string& arm_group_name, const std::string& object_subframe_to_place, bool this_is_start, const std::string& container_name){
 	group = arm_group_name;
 	hand_group_name = group + "_robotiq_85";
 	hand_frame = hand_group_name + "_tip_link";
 
 	std::string tem = hand_frame;
 
-	auto c = std::make_unique<SerialContainer>("Fastening " + group);
+	auto c = std::make_unique<SerialContainer>(container_name + " with " + group);
 
 	/****************************************************
 	 *                                                  *
 	 *               Current State                      *
 	 *                                                  *
 	 ***************************************************/
-	current_state_stage = nullptr;  // Forward current_state on to grasp pose generator
+	// current_state_stage = nullptr;  // Forward current_state on to grasp pose generator
 	{
-		auto _current_state = std::make_unique<stages::CurrentState>("current state");
+		std::unique_ptr<moveit::task_constructor::stages::PredicateFilter> applicability_filter;
+		auto _current_state = std::make_unique<stages::CurrentState>(container_name + " start state");
+		auto _dummy_state = std::make_unique<stages::Dummy>(container_name + " start state");
+		_dummy_state->restrictDirection(PropagatingEitherWay::FORWARD);
 
 		// Verify that object is not attached
-		auto applicability_filter =
-		    std::make_unique<stages::PredicateFilter>("applicability test", std::move(_current_state));
+		if (this_is_start){
+			applicability_filter =
+			std::make_unique<stages::PredicateFilter>("applicability test", std::move(_current_state));
+		} else {
+			applicability_filter =
+			std::make_unique<stages::PredicateFilter>("applicability test", std::move(_dummy_state));
+		}
 		applicability_filter->setPredicate([object, tem](const SolutionBase& s, std::string& comment) {
 			if (s.start()->scene()->getCurrentState().hasAttachedBody(object)) {
 				if (s.start()->scene()->getCurrentState().getAttachedBody(object)->getAttachedLinkName() == tem){
@@ -802,7 +1007,7 @@ std::unique_ptr<SerialContainer> Modules_Planner::Fasten(const std::string& obje
 			} else {
 				comment = "object with id '" + object + "' is not attached so fastening cannot be planned";
 				return false;
-			}
+				}
 		});
 
 		attach_object_stage = applicability_filter.get();
@@ -824,7 +1029,7 @@ std::unique_ptr<SerialContainer> Modules_Planner::Fasten(const std::string& obje
 	// Place
 	c->insert(std::move(Modules_Planner::Place_Object(object, target_pose, object_subframe_to_place)));
 
-	c->insert(std::move(std::make_unique<stages::Dummy>("Fastening")));
+	c->insert(std::move(std::make_unique<stages::Dummy>(container_name + " (dummy)")));
 
 	// /******************************************************
 	//  *                                                    *
@@ -832,7 +1037,94 @@ std::unique_ptr<SerialContainer> Modules_Planner::Fasten(const std::string& obje
 	//  *                                                    *
 	//  *****************************************************/
 	{
-		auto stage = std::make_unique<stages::MoveRelative>("retreat after fastening", cartesian_planner);
+		auto stage = std::make_unique<stages::MoveRelative>("Retreat", cartesian_planner);
+		stage->setMinMaxDistance(.05, .1);                          //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+		stage->setIKFrame(hand_frame);
+		stage->properties().set("marker_ns", "retreat");
+		stage->properties().set("group", group);
+		geometry_msgs::Vector3Stamped vec;
+		vec.header.frame_id = approach_place_direction_reference_frame;
+		vec.vector.x = -1*approach_place_direction[0];
+		vec.vector.y = -1*approach_place_direction[1];
+		vec.vector.z = -1*approach_place_direction[2];
+		stage->setDirection(vec);
+		c->insert(std::move(stage));
+	}
+
+	return c;
+}
+
+std::unique_ptr<SerialContainer> Modules_Planner::Fasten(const std::string& object, const std::vector<geometry_msgs::PoseStamped>& target_pose, const std::string& arm_group_name, const std::string& object_subframe_to_place, bool this_is_start, const std::string& container_name){
+	group = arm_group_name;
+	hand_group_name = group + "_robotiq_85";
+	hand_frame = hand_group_name + "_tip_link";
+
+	std::string tem = hand_frame;
+
+	auto c = std::make_unique<SerialContainer>(container_name + " with " + group);
+
+	/****************************************************
+	 *                                                  *
+	 *               Current State                      *
+	 *                                                  *
+	 ***************************************************/
+	// current_state_stage = nullptr;  // Forward current_state on to grasp pose generator
+	{
+		std::unique_ptr<moveit::task_constructor::stages::PredicateFilter> applicability_filter;
+		auto _current_state = std::make_unique<stages::CurrentState>(container_name + " start state");
+		auto _dummy_state = std::make_unique<stages::Dummy>(container_name + " start state");
+		_dummy_state->restrictDirection(PropagatingEitherWay::FORWARD);
+
+		// Verify that object is not attached
+		if (this_is_start){
+			applicability_filter =
+			std::make_unique<stages::PredicateFilter>("applicability test", std::move(_current_state));
+		} else {
+			applicability_filter =
+			std::make_unique<stages::PredicateFilter>("applicability test", std::move(_dummy_state));
+		}
+		applicability_filter->setPredicate([object, tem](const SolutionBase& s, std::string& comment) {
+			if (s.start()->scene()->getCurrentState().hasAttachedBody(object)) {
+				if (s.start()->scene()->getCurrentState().getAttachedBody(object)->getAttachedLinkName() == tem){
+					return true;
+				} else {
+					comment = "object with id '" + object + "' is attached to a link other than the hand frame of this group";
+					return false;
+				}
+			} else {
+				comment = "object with id '" + object + "' is not attached so fastening cannot be planned";
+				return false;
+				}
+		});
+
+		attach_object_stage = applicability_filter.get();
+		c->insert(std::move(applicability_filter));
+	}
+
+	/******************************************************
+	 *                                                    *
+	 *          Move to Place                             *
+	 *                                                    *
+	 *****************************************************/
+	{
+		auto stage = std::make_unique<stages::Connect>(
+		    "move to place", stages::Connect::GroupPlannerVector{ { group, sampling_planner } });
+		stage->setTimeout(5.0);
+		c->insert(std::move(stage));
+	}
+
+	// Place
+	c->insert(std::move(Modules_Planner::Place_Object(object, target_pose, object_subframe_to_place)));
+
+	c->insert(std::move(std::make_unique<stages::Dummy>(container_name + " (dummy)")));
+
+	// /******************************************************
+	//  *                                                    *
+	//  *                Retreat Motion                      *
+	//  *                                                    *
+	//  *****************************************************/
+	{
+		auto stage = std::make_unique<stages::MoveRelative>("Retreat", cartesian_planner);
 		stage->setMinMaxDistance(.05, .1);                          //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 		stage->setIKFrame(hand_frame);
 		stage->properties().set("marker_ns", "retreat");
@@ -948,7 +1240,7 @@ std::unique_ptr<SerialContainer> Modules_Planner::Pick_Place_with_Regrasp(const 
 	 *                                                  *
 	 ***************************************************/
 	{
-		auto stage = std::make_unique<stages::ModifyPlanningScene>("attach object");
+		auto stage = std::make_unique<stages::ModifyPlanningScene>("attach object to " + group);
 		stage->attachObject(object, hand_frame);
 		attach_object_stage = stage.get();
 		c->insert(std::move(stage));
@@ -976,29 +1268,48 @@ std::unique_ptr<SerialContainer> Modules_Planner::Pick_Place_with_Regrasp(const 
 	return c;
 }
 
-std::unique_ptr<Alternatives> Modules_Planner::Pick_and_Lift_Alternatives(const std::string& object){
-	auto parallel = std::make_unique<Alternatives>("Pick and Lift");
+std::unique_ptr<Alternatives> Modules_Planner::Pick_and_Lift_Alternatives(const std::string& object, bool this_is_start){
+	auto parallel = std::make_unique<Alternatives>("Pick '" + object + "'");
 
-	parallel->insert(std::move(Modules_Planner::Pick_and_Lift(object, "a_bot")));
-	parallel->insert(std::move(Modules_Planner::Pick_and_Lift(object, "b_bot")));
-
-	return parallel;
-}
-
-std::unique_ptr<Alternatives> Modules_Planner::Place_Alternatives(const std::string& object, const geometry_msgs::PoseStamped& target_pose, bool release_object, const std::string& object_subframe_to_place){
-	auto parallel = std::make_unique<Alternatives>("Place");
-
-	parallel->insert(std::move(Modules_Planner::Place(object, target_pose, "a_bot", release_object, object_subframe_to_place)));
-	parallel->insert(std::move(Modules_Planner::Place(object, target_pose, "b_bot", release_object, object_subframe_to_place)));
+	parallel->insert(std::move(Modules_Planner::Pick_and_Lift(object, "a_bot", this_is_start)));
+	parallel->insert(std::move(Modules_Planner::Pick_and_Lift(object, "b_bot", this_is_start)));
 
 	return parallel;
 }
 
-std::unique_ptr<Alternatives> Modules_Planner::Fasten_Alternatives(const std::string& object, const geometry_msgs::PoseStamped& target_pose, const std::string& object_subframe_to_place){
-	auto parallel = std::make_unique<Alternatives>("Fasten");
+std::unique_ptr<Alternatives> Modules_Planner::Release_and_Retreat_Alternatives(const std::string& object, const std::string& pose){
+	auto parallel = std::make_unique<Alternatives>("Release '" + object + "' and retreat");
 
-	parallel->insert(std::move(Modules_Planner::Fasten(object, target_pose, "a_bot", object_subframe_to_place)));
-	parallel->insert(std::move(Modules_Planner::Fasten(object, target_pose, "b_bot", object_subframe_to_place)));
+	parallel->insert(std::move(Modules_Planner::Release_and_Retreat(object, "a_bot", pose)));
+	parallel->insert(std::move(Modules_Planner::Release_and_Retreat(object, "b_bot", pose)));
+
+	return parallel;
+
+}
+
+std::unique_ptr<Alternatives> Modules_Planner::Place_Alternatives(const std::string& object, const geometry_msgs::PoseStamped& target_pose, bool release_object, const std::string& object_subframe_to_place, bool this_is_start){
+	auto parallel = std::make_unique<Alternatives>("Place '" + object + "'");
+
+	parallel->insert(std::move(Modules_Planner::Place(object, target_pose, "a_bot", release_object, object_subframe_to_place, this_is_start)));
+	parallel->insert(std::move(Modules_Planner::Place(object, target_pose, "b_bot", release_object, object_subframe_to_place, this_is_start)));
+
+	return parallel;
+}
+
+std::unique_ptr<Alternatives> Modules_Planner::Fasten_Alternatives(const std::string& object, const geometry_msgs::PoseStamped& target_pose, const std::string& object_subframe_to_place, bool this_is_start, const std::string& container_name){
+	auto parallel = std::make_unique<Alternatives>(container_name);
+
+	parallel->insert(std::move(Modules_Planner::Fasten(object, target_pose, "a_bot", object_subframe_to_place, this_is_start, container_name)));
+	parallel->insert(std::move(Modules_Planner::Fasten(object, target_pose, "b_bot", object_subframe_to_place, this_is_start, container_name)));
+
+	return parallel;
+}
+
+std::unique_ptr<Alternatives> Modules_Planner::Fasten_Alternatives(const std::string& object, const std::vector<geometry_msgs::PoseStamped>& target_pose, const std::string& object_subframe_to_place, bool this_is_start, const std::string& container_name){
+	auto parallel = std::make_unique<Alternatives>(container_name);
+
+	parallel->insert(std::move(Modules_Planner::Fasten(object, target_pose, "a_bot", object_subframe_to_place, this_is_start, container_name)));
+	parallel->insert(std::move(Modules_Planner::Fasten(object, target_pose, "b_bot", object_subframe_to_place, this_is_start, container_name)));
 
 	return parallel;
 }
@@ -1015,9 +1326,9 @@ std::unique_ptr<Alternatives> Modules_Planner::Pick_Place_Alternatives(const std
 }
 
 std::unique_ptr<Fallbacks> Modules_Planner::Pick_Place_Fallback(const std::string& object, const geometry_msgs::PoseStamped& target_pose, bool release_object, const std::string& object_subframe_to_place){
-	auto parallel = std::make_unique<Fallbacks>("Pick-Place");
+	auto parallel = std::make_unique<Fallbacks>("Pick-Place '" + object + "'");
 
-	auto single_robot_task_solutions = std::make_unique<Alternatives>("Pick-Place single robot");
+	auto single_robot_task_solutions = std::make_unique<Alternatives>("Pick-Place with single robot");
 	single_robot_task_solutions->insert(std::move(Modules_Planner::Pick_Place(object, target_pose, "a_bot", release_object, object_subframe_to_place)));
 	single_robot_task_solutions->insert(std::move(Modules_Planner::Pick_Place(object, target_pose, "b_bot", release_object, object_subframe_to_place)));
 	
@@ -1078,6 +1389,107 @@ void Modules_Planner::createFasten(const std::string& object, const geometry_msg
 	robot_model_ = t.getRobotModel();
 
 	t.add(Modules_Planner::Fasten_Alternatives(object, target_pose, object_subframe_to_place));
+}
+
+void Modules_Planner::createSubAssembly(const std::string& object, const geometry_msgs::PoseStamped& target_pose, bool release_object, const std::string& object_subframe_to_place){
+	task_.reset();
+	task_.reset(new moveit::task_constructor::Task());
+	moveit::task_constructor::Task& t = *task_;
+	t.stages()->setName("Attach L-plate to base plate");
+	t.loadRobotModel();
+
+	robot_model_ = t.getRobotModel();
+
+	t.add(Modules_Planner::Pick_Place_Fallback(object, target_pose, release_object, object_subframe_to_place));
+
+	grasp_parameter_location = "tools";
+	std::string screw_type = "m4";
+
+	std::string tool = "screw_tool_" + screw_type;
+	lift_direction_reference_frame = tool + "_pickup_link";
+	lift_direction[0] = -1.0;
+	lift_direction[1] = 0.0;
+	lift_direction[2] = 0.0;
+
+	t.add(Modules_Planner::Pick_and_Lift_Alternatives(tool, false));
+
+	geometry_msgs::PoseStamped screw_pickup_pose;
+	screw_pickup_pose.header.frame_id = screw_type + "_feeder_outlet_link";
+	screw_pickup_pose.pose.position.x = -0.01;
+	screw_pickup_pose.pose.position.y = 0;
+	screw_pickup_pose.pose.position.z = 0;
+	screw_pickup_pose.pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(2*M_PI/3, 0, 0);
+
+	geometry_msgs::PoseStamped screw_pickup_pose_2;
+	screw_pickup_pose_2.header.frame_id = screw_type + "_feeder_outlet_link";
+	screw_pickup_pose_2.pose.position.x = -0.01;
+	screw_pickup_pose_2.pose.position.y = 0;
+	screw_pickup_pose_2.pose.position.z = 0;
+	screw_pickup_pose_2.pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(-2*M_PI/3, 0, 0);
+
+	std::vector<geometry_msgs::PoseStamped> screw_pickup_poses;
+	screw_pickup_poses.push_back(screw_pickup_pose);
+	screw_pickup_poses.push_back(screw_pickup_pose_2);
+
+	std::string screw_tool_tip_frame = tool + "/" + tool + "_tip";
+
+	t.add(Modules_Planner::Fasten_Alternatives(tool, screw_pickup_poses, screw_tool_tip_frame, false, "Pick up screw"));
+	// t.stages()->findChild("Fasten")->setName("Pick up screw");
+
+	geometry_msgs::PoseStamped screwing_pose;
+	screwing_pose.header.frame_id = "panel_bearing/bottom_screw_hole_1";
+	screwing_pose.pose.position.x = -0.0001;
+	screwing_pose.pose.position.y = 0;
+	screwing_pose.pose.position.z = 0;
+	screwing_pose.pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(0, 0, 0);
+
+	geometry_msgs::PoseStamped screwing_pose_2;
+	screwing_pose_2.header.frame_id = "panel_bearing/bottom_screw_hole_1";
+	screwing_pose_2.pose.position.x = -0.0001;
+	screwing_pose_2.pose.position.y = 0;
+	screwing_pose_2.pose.position.z = 0;
+	screwing_pose_2.pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(M_PI, 0, 0);
+
+	std::vector<geometry_msgs::PoseStamped> screwing_poses;
+	screwing_poses.push_back(screwing_pose);
+	screwing_poses.push_back(screwing_pose_2);
+
+	t.add(Modules_Planner::Fasten_Alternatives(tool, screwing_poses, screw_tool_tip_frame, false, "Fasten screw"));
+
+	retreat_direction_reference_frame = "world";
+	retreat_direction[0] = 0;
+	retreat_direction[1] = 0;
+	retreat_direction[2] = 1;
+
+	t.add(Modules_Planner::Release_and_Retreat_Alternatives(object, "home"));
+
+	retreat_direction_reference_frame = "";
+	retreat_direction[0] = -1;
+	retreat_direction[1] = 0;
+	retreat_direction[2] = 0;
+
+	t.add(Modules_Planner::Fasten_Alternatives(tool, screw_pickup_poses, screw_tool_tip_frame, false, "Pick up screw"));
+	// t.stages()->findChild("Fasten")->setName("Pick up screw");
+
+	screwing_poses[0].header.frame_id = "panel_bearing/bottom_screw_hole_2";
+	screwing_poses[1].header.frame_id = "panel_bearing/bottom_screw_hole_2";
+
+	t.add(Modules_Planner::Fasten_Alternatives(tool, screwing_poses, screw_tool_tip_frame, false, "Fasten screw"));
+
+	geometry_msgs::PoseStamped screw_tool_place;
+	screw_tool_place.header.frame_id = "screw_tool_" + screw_type + "_link";
+	screw_tool_place.pose.position.x = 0;
+	screw_tool_place.pose.position.y = -0.009;
+	screw_tool_place.pose.position.z = 0.0275;
+	screw_tool_place.pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(0, 0, 0);
+
+	approach_place_direction_reference_frame = "screw_tool_" + screw_type + "_pickup_link";
+	approach_place_direction[0] = 1.0;
+	approach_place_direction[1] = 0.0;
+	approach_place_direction[2] = 0.0;
+
+	t.add(Modules_Planner::Place_Alternatives(tool, screw_tool_place, true, "", false));
+
 }
 
 }

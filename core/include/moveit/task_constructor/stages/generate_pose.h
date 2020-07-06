@@ -56,10 +56,16 @@ public:
 	void compute() override;
 
 	void setPose(const geometry_msgs::PoseStamped& pose) { setProperty("pose", pose); }
+	void setPose(std::vector<geometry_msgs::PoseStamped> poses){
+		if(!poses.empty()){
+			_poses = poses;
+		}
+	}
 
 protected:
 	void onNewSolution(const SolutionBase& s) override;
 	ordered<const SolutionBase*> upstream_solutions_;
+	std::vector<geometry_msgs::PoseStamped> _poses;
 };
 }  // namespace stages
 }  // namespace task_constructor

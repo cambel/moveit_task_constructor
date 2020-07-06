@@ -71,23 +71,27 @@ void GeneratePose::compute() {
 		return;
 
 	planning_scene::PlanningScenePtr scene = upstream_solutions_.pop()->end()->scene()->diff();
-	geometry_msgs::PoseStamped target_pose = properties().get<geometry_msgs::PoseStamped>("pose");
-	if (target_pose.header.frame_id.empty())
-		target_pose.header.frame_id = scene->getPlanningFrame();
-	else if (!scene->knowsFrameTransform(target_pose.header.frame_id)) {
-		ROS_WARN_NAMED("GeneratePose", "Unknown frame: '%s'", target_pose.header.frame_id.c_str());
-		return;
+	if(_poses.empty()){
+		_poses.push_back(properties().get<geometry_msgs::PoseStamped>("pose"));
 	}
+	for(geometry_msgs::PoseStamped target_pose : _poses){
+		if (target_pose.header.frame_id.empty())
+			target_pose.header.frame_id = scene->getPlanningFrame();
+		else if (!scene->knowsFrameTransform(target_pose.header.frame_id)) {
+			ROS_WARN_NAMED("GeneratePose", "Unknown frame: '%s'", target_pose.header.frame_id.c_str());
+			return;
+		}
 
-	InterfaceState state(scene);
-	state.properties().set("target_pose", target_pose);
+		InterfaceState state(scene);
+		state.properties().set("target_pose", target_pose);
 
-	SubTrajectory trajectory;
-	trajectory.setCost(0.0);
+		SubTrajectory trajectory;
+		trajectory.setCost(0.0);
 
-	rviz_marker_tools::appendFrame(trajectory.markers(), target_pose, 0.1, "pose frame");
+		rviz_marker_tools::appendFrame(trajectory.markers(), target_pose, 0.1, "pose frame");
 
-	spawn(std::move(state), std::move(trajectory));
+		spawn(std::move(state), std::move(trajectory));
+	}
 }
 }  // namespace stages
 }  // namespace task_constructor

@@ -136,6 +136,7 @@ public:
 	// +1 TODO: convenient access to arbitrary stage by name. traverse hierarchy using / separator?
 	/// access stage tree
 	ContainerBase* stages();
+	ContainerBase* stagesEnd();
 	const ContainerBase* stages() const;
 
 	/// properties access

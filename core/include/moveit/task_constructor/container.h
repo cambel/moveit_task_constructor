@@ -208,6 +208,7 @@ public:
 
 	/// access the single wrapped child, NULL if still empty
 	Stage* wrapped();
+	Stage* wrappedBack();
 	inline const Stage* wrapped() const { return const_cast<WrapperBase*>(this)->wrapped(); }
 
 	bool canCompute() const override;

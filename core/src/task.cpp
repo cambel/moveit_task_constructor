@@ -298,6 +298,10 @@ ContainerBase* Task::stages() {
 	return static_cast<ContainerBase*>(WrapperBase::wrapped());
 }
 
+ContainerBase* Task::stagesEnd() {
+	return static_cast<ContainerBase*>(WrapperBase::wrappedBack());
+}
+
 const ContainerBase* Task::stages() const {
 	return const_cast<Task*>(this)->stages();
 }

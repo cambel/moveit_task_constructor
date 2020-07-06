@@ -770,6 +770,10 @@ Stage* WrapperBase::wrapped() {
 	return pimpl()->children().empty() ? nullptr : pimpl()->children().front().get();
 }
 
+Stage* WrapperBase::wrappedBack() {
+	return pimpl()->children().empty() ? nullptr : pimpl()->children().back().get();
+}
+
 bool WrapperBase::canCompute() const {
 	return wrapped()->pimpl()->canCompute();
 }
