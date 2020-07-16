@@ -103,21 +103,51 @@ bool isTargetPoseColliding(const planning_scene::PlanningScenePtr& scene, Eigen:
 	robot_state.updateStateWithLinkAt(parent, pose);
 	robot_state.updateCollisionBodyTransforms();
 
-	// disable collision checking for parent links (except links fixed to root)
 	auto& acm = scene->getAllowedCollisionMatrixNonConst();
-	std::vector<const std::string*> pending_links;  // parent link names that might be rigidly connected to root
-	while (parent) {
-		pending_links.push_back(&parent->getName());
-		link = parent;
-		const robot_model::JointModel* joint = link->getParentJointModel();
-		parent = joint->getParentLinkModel();
 
-		if (joint->getType() != robot_model::JointModel::FIXED) {
-			for (const std::string* name : pending_links)
-				acm.setDefaultEntry(*name, true);
-			pending_links.clear();
+	std::vector<moveit_msgs::CollisionObject> collision_objects;
+	scene->getCollisionObjectMsgs(collision_objects);
+	for (moveit_msgs::CollisionObject collision_object : collision_objects){
+		acm.setDefaultEntry(collision_object.id, true);
+	}
+
+	std::vector<std::string> links_fixed_to_root;
+	std::vector<std::string> temp;
+	std::vector<const moveit::core::JointModel*> child_joints;
+	const robot_model::LinkModel* root_link = robot_state.getRobotModel()->getLinkModel(0);
+	temp.push_back(root_link->getName());
+	while(!temp.empty()){
+		if (!temp.empty()){
+			std::string next_link = temp.back();
+			root_link = robot_state.getRobotModel()->getLinkModel(next_link);
+			links_fixed_to_root.push_back(next_link);
+			temp.pop_back();
+		}
+		child_joints = root_link->getChildJointModels();
+		for (const moveit::core::JointModel* child_joint : child_joints){
+			if (child_joint->getType() == robot_model::JointModel::FIXED){
+				temp.push_back(child_joint->getChildLinkModel()->getName());
+			}
 		}
 	}
+	for (std::string link : links_fixed_to_root){
+		acm.setEntry(link, links_fixed_to_root, true);
+	}
+
+	// disable collision checking for parent links (except links fixed to root)
+	// std::vector<const std::string*> pending_links;  // parent link names that might be rigidly connected to root
+	// while (parent) {
+	// 	pending_links.push_back(&parent->getName());
+	// 	link = parent;
+	// 	const robot_model::JointModel* joint = link->getParentJointModel();
+	// 	parent = joint->getParentLinkModel();
+
+	// 	if (joint->getType() != robot_model::JointModel::FIXED) {
+	// 		for (const std::string* name : pending_links)
+	// 			acm.setDefaultEntry(*name, true);
+	// 		pending_links.clear();
+	// 	}
+	// }
 
 	// check collision with the world using the padded version
 	collision_detection::CollisionRequest req;
