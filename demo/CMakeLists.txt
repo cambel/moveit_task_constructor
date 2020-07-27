@@ -34,6 +34,9 @@ target_link_libraries(pick_place_demo ${catkin_LIBRARIES})
 add_executable(modular_pick_hold src/modular_pick_hold.cpp)
 target_link_libraries(modular_pick_hold ${catkin_LIBRARIES})
 
+add_executable(mtc_modules_server src/mtc_modules_server.cpp)
+target_link_libraries(mtc_modules_server ${catkin_LIBRARIES})
+
 add_library(${PROJECT_NAME}_lib src/pick_place_task.cpp)
 set_target_properties(${PROJECT_NAME}_lib PROPERTIES OUTPUT_NAME moveit_task_constructor_demo_pick_place)
 add_dependencies(${PROJECT_NAME}_lib ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})

@@ -31,6 +31,7 @@ add_action_files(DIRECTORY action FILES
 	PickPlaceWithRegrasp.action
 	PickObject.action
 	PlaceObject.action
+	ReleaseObject.action
 )
 
 generate_messages(DEPENDENCIES ${MSG_DEPS})

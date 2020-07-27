@@ -1,0 +1,15 @@
+# Define the goal
+string object_name
+string pose_to_retreat_to   # If defined, the robot will move to the pose referred to by 'pose_to_retreat_to' with joint interpolation after releasing the object and retreating
+
+string retreat_direction_reference_frame
+float64[] retreat_direction
+float64 retreat_min_dist  # Minimum lift distance in the 'z' direction of the world frame
+float64 retreat_max_dist  # Maximum lift distance in the 'z' direction of the world frame
+string surface_link  # name of link on which the object lies before picking
+---
+# Define the result
+bool success
+moveit_task_constructor_msgs/Solution solution
+---
+# Define a feedback message

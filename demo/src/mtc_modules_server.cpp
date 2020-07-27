@@ -59,6 +59,7 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <moveit_task_constructor_msgs/PickObjectAction.h>
 #include <moveit_task_constructor_msgs/PlaceObjectAction.h>
+#include <moveit_task_constructor_msgs/ReleaseObjectAction.h>
 #include <moveit_task_constructor_msgs/PickPlaceWithRegraspAction.h>
 
 #include <actionlib/server/simple_action_server.h>
@@ -89,6 +90,7 @@ class Modules_Planner{
 
 		Modules_Planner(): pick_planning_server(Modules_Planner::nh, "pick_planning", boost::bind(&Modules_Planner::pick_planning_server_cb, this, _1), false),
 		place_planning_server(Modules_Planner::nh, "place_planning", boost::bind(&Modules_Planner::place_planning_server_cb, this, _1), false),
+		release_planning_server(Modules_Planner::nh, "release_planning", boost::bind(&Modules_Planner::release_planning_server_cb, this, _1), false),
 		pick_place_planning_server(Modules_Planner::nh, "pick_place_planning", boost::bind(&Modules_Planner::pick_place_planning_server_cb, this, _1), false),
 		fastening_planning_server(Modules_Planner::nh, "fastening_planning", boost::bind(&Modules_Planner::fastening_planning_server_cb, this, _1), false),
 		sub_assembly_planning_server(Modules_Planner::nh, "sub_assembly_planning", boost::bind(&Modules_Planner::sub_assembly_planning_server_cb, this, _1), false)
@@ -96,8 +98,10 @@ class Modules_Planner{
 			pick_place_planning_server.start();
         	pick_planning_server.start();
 			place_planning_server.start();
+			release_planning_server.start();
 			fastening_planning_server.start();
 			sub_assembly_planning_server.start();
+			ROS_INFO_NAMED(LOGNAME, "Starting MTC Modules action servers");
     	}
 
 		void init();
@@ -107,15 +111,15 @@ class Modules_Planner{
 		std::unique_ptr<SerialContainer> Pick_and_Lift(const std::string& object, const std::string& arm_group_name, bool this_is_start=true);
 		std::unique_ptr<SerialContainer> Place_Object(const std::string& object, const geometry_msgs::PoseStamped& target_pose, const std::string& object_subframe_to_place="");
 		std::unique_ptr<SerialContainer> Place_Object(const std::string& object, const std::vector<geometry_msgs::PoseStamped>& target_pose, const std::string& object_subframe_to_place="");
-		std::unique_ptr<SerialContainer> Release_Object_and_Retreat(const std::string& object, const std::string& pose="");
-		std::unique_ptr<SerialContainer> Release_and_Retreat(const std::string& object, const std::string& arm_group_name, const std::string& pose="");
+		std::unique_ptr<SerialContainer> Release_Object_and_Retreat(const std::string& object, const std::string& pose_to_retreat_to="");
+		std::unique_ptr<SerialContainer> Release_and_Retreat(const std::string& object, const std::string& arm_group_name, const std::string& pose_to_retreat_to="", bool this_is_start=true);
 		std::unique_ptr<SerialContainer> Place(const std::string& object, const geometry_msgs::PoseStamped& target_pose, const std::string& arm_group_name, bool release_object=true, const std::string& object_subframe_to_place="", bool this_is_start=true);
 		std::unique_ptr<SerialContainer> Fasten(const std::string& object, const geometry_msgs::PoseStamped& target_pose, const std::string& arm_group_name, const std::string& object_subframe_to_place="", bool this_is_start=true, const std::string& container_name="Fasten");
 		std::unique_ptr<SerialContainer> Fasten(const std::string& object, const std::vector<geometry_msgs::PoseStamped>& target_pose, const std::string& arm_group_name, const std::string& object_subframe_to_place="", bool this_is_start=true, const std::string& container_name="Fasten");
 		std::unique_ptr<SerialContainer> Pick_Place(const std::string& object, const geometry_msgs::PoseStamped& target_pose, const std::string& arm_group_name, bool release_object=true, const std::string& object_subframe_to_place="");
 		std::unique_ptr<SerialContainer> Pick_Place_with_Regrasp(const std::string& object, const geometry_msgs::PoseStamped& target_pose, const std::string& pick_arm_group_name, const std::string& place_arm_group_name, bool release_object=true, const std::string& object_subframe_to_place="");
 		std::unique_ptr<Alternatives> Pick_and_Lift_Alternatives(const std::string& object, bool this_is_start=true);
-		std::unique_ptr<Alternatives> Release_and_Retreat_Alternatives(const std::string& object, const std::string& pose="");
+		std::unique_ptr<Alternatives> Release_and_Retreat_Alternatives(const std::string& object, const std::string& pose_to_retreat_to="", bool this_is_start=true);
 		std::unique_ptr<Alternatives> Place_Alternatives(const std::string& object, const geometry_msgs::PoseStamped& target_pose, bool release_object=true, const std::string& object_subframe_to_place="", bool this_is_start=true);
 		std::unique_ptr<Alternatives> Fasten_Alternatives(const std::string& object, const geometry_msgs::PoseStamped& target_pose, const std::string& object_subframe_to_place="", bool this_is_start=true, const std::string& container_name="Fasten");
 		std::unique_ptr<Alternatives> Fasten_Alternatives(const std::string& object, const std::vector<geometry_msgs::PoseStamped>& target_pose, const std::string& object_subframe_to_place="", bool this_is_start=true, const std::string& container_name="Fasten");
@@ -125,6 +129,7 @@ class Modules_Planner{
 		void createPickPlace(const std::string& object, const geometry_msgs::PoseStamped& target_pose, bool release_object=true, const std::string& object_subframe_to_place="");
 		void createPick(const std::string& object);
 		void createPlace(const std::string& object, const geometry_msgs::PoseStamped& target_pose, bool release_object=true, const std::string& object_subframe_to_place="");
+		void createReleaseRetreat(const std::string& object, const std::string& pose_to_retreat_to="");
 		void createFasten(const std::string& object, const geometry_msgs::PoseStamped& target_pose, const std::string& object_subframe_to_place="");
 		void createSubAssembly(const std::string& object, const geometry_msgs::PoseStamped& target_pose, bool release_object=true, const std::string& object_subframe_to_place="");
 
@@ -200,6 +205,30 @@ class Modules_Planner{
 			approach_place_direction_reference_frame = temp_approach_place_direction_reference_frame;
 			approach_place_direction = temp_approach_place_direction;
 			place_planning_server.setSucceeded(place_result);
+		}
+
+		void release_planning_server_cb(const moveit_task_constructor_msgs::ReleaseObjectGoalConstPtr& goal){
+			bool success = false;
+			moveit_task_constructor_msgs::Solution sol;
+
+			createReleaseRetreat(goal->object_name, goal->pose_to_retreat_to);
+
+			try {
+				success = task_->plan(10);
+				if (success && task_->numSolutions() != 0){
+					ROS_INFO_NAMED(LOGNAME, "Planning succeeded");
+					task_->solutions().front()->fillMessage(sol);
+				} else{
+					ROS_INFO_NAMED(LOGNAME, "Planning failed");
+				}
+			} catch (const moveit::task_constructor::InitStageException& ex) {
+				std::cerr << "planning failed with exception" << std::endl << ex;
+			}
+
+			release_result.success = success;
+			release_result.solution = sol;
+
+			release_planning_server.setSucceeded(release_result);
 		}
 
 		void fastening_planning_server_cb(const moveit_task_constructor_msgs::PlaceObjectGoalConstPtr& goal){
@@ -340,10 +369,12 @@ class Modules_Planner{
 		actionlib::SimpleActionServer<moveit_task_constructor_msgs::PickPlaceWithRegraspAction> sub_assembly_planning_server;
 		actionlib::SimpleActionServer<moveit_task_constructor_msgs::PickObjectAction> pick_planning_server;
 		actionlib::SimpleActionServer<moveit_task_constructor_msgs::PlaceObjectAction> place_planning_server;
+		actionlib::SimpleActionServer<moveit_task_constructor_msgs::ReleaseObjectAction> release_planning_server;
 		actionlib::SimpleActionServer<moveit_task_constructor_msgs::PlaceObjectAction> fastening_planning_server;
 		moveit_task_constructor_msgs::PickPlaceWithRegraspResult pick_place_result;
 		moveit_task_constructor_msgs::PickObjectResult pick_result;
 		moveit_task_constructor_msgs::PlaceObjectResult place_result;
+		moveit_task_constructor_msgs::ReleaseObjectResult release_result;
 
 		moveit::task_constructor::TaskPtr task_;
 
@@ -451,6 +482,8 @@ void Modules_Planner::init(){
 	current_state_stage = nullptr;
 	attach_object_stage = nullptr;
 	lift_object_stage = nullptr;
+
+	ROS_INFO_NAMED(LOGNAME, "Initialization finished!\nReady to start planning ...");
 }
 
 std::unique_ptr<SerialContainer> Modules_Planner::Pick_Object(const std::string& object){
@@ -776,7 +809,7 @@ std::unique_ptr<SerialContainer> Modules_Planner::Place_Object(const std::string
 	return c;
 }
 
-std::unique_ptr<SerialContainer> Modules_Planner::Release_Object_and_Retreat(const std::string& object, const std::string& pose){
+std::unique_ptr<SerialContainer> Modules_Planner::Release_Object_and_Retreat(const std::string& object, const std::string& pose_to_retreat_to){
 	auto c = std::make_unique<SerialContainer>("Release '" + object + "' and retreat, " + group);
 
 	// /******************************************************
@@ -842,11 +875,11 @@ std::unique_ptr<SerialContainer> Modules_Planner::Release_Object_and_Retreat(con
 		c->insert(std::move(stage));
 	}
 
-	if(pose != "") {
+	if(pose_to_retreat_to != "") {
 		{
-			auto stage = std::make_unique<stages::MoveTo>("move to pose '" + pose + "'", sampling_planner);
+			auto stage = std::make_unique<stages::MoveTo>("move to pose '" + pose_to_retreat_to + "'", sampling_planner);
 			stage->properties().set("group", group);
-			stage->setGoal(pose);
+			stage->setGoal(pose_to_retreat_to);
 			c->insert(std::move(stage));
 		}
 	}
@@ -854,7 +887,7 @@ std::unique_ptr<SerialContainer> Modules_Planner::Release_Object_and_Retreat(con
 	return c;
 }
 
-std::unique_ptr<SerialContainer> Modules_Planner::Release_and_Retreat(const std::string& object, const std::string& arm_group_name, const std::string& pose){
+std::unique_ptr<SerialContainer> Modules_Planner::Release_and_Retreat(const std::string& object, const std::string& arm_group_name, const std::string& pose_to_retreat_to, bool this_is_start){
 	group = arm_group_name;
 	hand_group_name = group + "_robotiq_85";
 	hand_frame = hand_group_name + "_tip_link";
@@ -869,12 +902,17 @@ std::unique_ptr<SerialContainer> Modules_Planner::Release_and_Retreat(const std:
 	 *                                                  *
 	 ***************************************************/
 	{
-		auto _current_state = std::make_unique<stages::Dummy>("current state");
-		_current_state->restrictDirection(PropagatingEitherWay::FORWARD);
+		std::unique_ptr<moveit::task_constructor::stages::PredicateFilter> applicability_filter;
+		auto _current_state = std::make_unique<stages::CurrentState>("current state");
+		auto _dummy_state = std::make_unique<stages::Dummy>("current state");
+		_dummy_state->restrictDirection(PropagatingEitherWay::FORWARD);
 
 		// Verify that object is attached to the given planning group
-		auto applicability_filter =
-		    std::make_unique<stages::PredicateFilter>("applicability test", std::move(_current_state));
+		if (this_is_start){
+			applicability_filter = std::make_unique<stages::PredicateFilter>("applicability test", std::move(_current_state));
+		} else {
+			applicability_filter = std::make_unique<stages::PredicateFilter>("applicability test", std::move(_dummy_state));
+		}
 		applicability_filter->setPredicate([object, tem](const SolutionBase& s, std::string& comment) {
 			if (s.start()->scene()->getCurrentState().hasAttachedBody(object)) {
 				if (s.start()->scene()->getCurrentState().getAttachedBody(object)->getAttachedLinkName() == tem){
@@ -893,7 +931,7 @@ std::unique_ptr<SerialContainer> Modules_Planner::Release_and_Retreat(const std:
 	}
 
 	// Release and retreat
-	c->insert(std::move(Modules_Planner::Release_Object_and_Retreat(object, pose)));
+	c->insert(std::move(Modules_Planner::Release_Object_and_Retreat(object, pose_to_retreat_to)));
 
 	return c;
 
@@ -1277,11 +1315,11 @@ std::unique_ptr<Alternatives> Modules_Planner::Pick_and_Lift_Alternatives(const 
 	return parallel;
 }
 
-std::unique_ptr<Alternatives> Modules_Planner::Release_and_Retreat_Alternatives(const std::string& object, const std::string& pose){
+std::unique_ptr<Alternatives> Modules_Planner::Release_and_Retreat_Alternatives(const std::string& object, const std::string& pose_to_retreat_to, bool this_is_start){
 	auto parallel = std::make_unique<Alternatives>("Release '" + object + "' and retreat");
 
-	parallel->insert(std::move(Modules_Planner::Release_and_Retreat(object, "a_bot", pose)));
-	parallel->insert(std::move(Modules_Planner::Release_and_Retreat(object, "b_bot", pose)));
+	parallel->insert(std::move(Modules_Planner::Release_and_Retreat(object, "a_bot", pose_to_retreat_to, this_is_start)));
+	parallel->insert(std::move(Modules_Planner::Release_and_Retreat(object, "b_bot", pose_to_retreat_to, this_is_start)));
 
 	return parallel;
 
@@ -1379,6 +1417,18 @@ void Modules_Planner::createPlace(const std::string& object, const geometry_msgs
 	t.add(Modules_Planner::Place_Alternatives(object, target_pose, release_object, object_subframe_to_place));
 }
 
+void Modules_Planner::createReleaseRetreat(const std::string& object, const std::string& pose_to_retreat_to){
+	task_.reset();
+	task_.reset(new moveit::task_constructor::Task());
+	moveit::task_constructor::Task& t = *task_;
+	t.stages()->setName("Task");
+	t.loadRobotModel();
+
+	robot_model_ = t.getRobotModel();
+
+	t.add(Modules_Planner::Release_and_Retreat_Alternatives(object, pose_to_retreat_to));
+}
+
 void Modules_Planner::createFasten(const std::string& object, const geometry_msgs::PoseStamped& target_pose, const std::string& object_subframe_to_place) {
 	task_.reset();
 	task_.reset(new moveit::task_constructor::Task());
@@ -1461,7 +1511,7 @@ void Modules_Planner::createSubAssembly(const std::string& object, const geometr
 	retreat_direction[1] = 0;
 	retreat_direction[2] = 1;
 
-	t.add(Modules_Planner::Release_and_Retreat_Alternatives(object, "home"));
+	t.add(Modules_Planner::Release_and_Retreat_Alternatives(object, "home", false));
 
 	retreat_direction_reference_frame = "";
 	retreat_direction[0] = -1;
