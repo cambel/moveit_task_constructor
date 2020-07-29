@@ -124,9 +124,9 @@ class Modules_Planner{
 		std::unique_ptr<Alternatives> Fasten_Alternatives(const std::string& object, const geometry_msgs::PoseStamped& target_pose, const std::string& object_subframe_to_place="", bool this_is_start=true, const std::string& container_name="Fasten");
 		std::unique_ptr<Alternatives> Fasten_Alternatives(const std::string& object, const std::vector<geometry_msgs::PoseStamped>& target_pose, const std::string& object_subframe_to_place="", bool this_is_start=true, const std::string& container_name="Fasten");
 		std::unique_ptr<Alternatives> Pick_Place_Alternatives(const std::string& object, const geometry_msgs::PoseStamped& target_pose, bool release_object=true, const std::string& object_subframe_to_place="");
-		std::unique_ptr<Fallbacks> Pick_Place_Fallback(const std::string& object, const geometry_msgs::PoseStamped& target_pose, bool release_object=true, const std::string& object_subframe_to_place="");
+		std::unique_ptr<Fallbacks> Pick_Place_Fallback(const std::string& object, const geometry_msgs::PoseStamped& target_pose, bool release_object=true, const std::string& object_subframe_to_place="", bool force_robot_order = false);
 
-		void createPickPlace(const std::string& object, const geometry_msgs::PoseStamped& target_pose, bool release_object=true, const std::string& object_subframe_to_place="");
+		void createPickPlace(const std::string& object, const geometry_msgs::PoseStamped& target_pose, bool release_object=true, const std::string& object_subframe_to_place="", bool force_robot_order = false);
 		void createPick(const std::string& object);
 		void createPlace(const std::string& object, const geometry_msgs::PoseStamped& target_pose, bool release_object=true, const std::string& object_subframe_to_place="");
 		void createReleaseRetreat(const std::string& object, const std::string& pose_to_retreat_to="");
@@ -139,6 +139,7 @@ class Modules_Planner{
 			std::string temp_grasp_parameter_location = grasp_parameter_location;
 			std::string temp_lift_direction_reference_frame = lift_direction_reference_frame;
 			std::vector<double> temp_lift_direction = lift_direction;
+			std::vector<std::string> temp_arm_group_names = arm_group_names;
 
 			if (goal->grasp_parameter_location != ""){
 				grasp_parameter_location = goal->grasp_parameter_location;
@@ -147,6 +148,10 @@ class Modules_Planner{
 			if (goal->lift_direction_reference_frame != "" && !goal->lift_direction.empty()){
 				lift_direction_reference_frame = goal->lift_direction_reference_frame;
 				lift_direction = goal->lift_direction;
+			}
+
+			if (goal->robot_name != ""){
+				arm_group_names = {goal->robot_name};
 			}
 
 			createPick(goal->object_name);
@@ -170,6 +175,7 @@ class Modules_Planner{
 			grasp_parameter_location = temp_grasp_parameter_location;
 			lift_direction_reference_frame = temp_lift_direction_reference_frame;
 			lift_direction = temp_lift_direction;
+			arm_group_names = temp_arm_group_names;
 			pick_planning_server.setSucceeded(pick_result);
 		}
 
@@ -178,10 +184,15 @@ class Modules_Planner{
 			moveit_task_constructor_msgs::Solution sol;
 			std::string temp_approach_place_direction_reference_frame = approach_place_direction_reference_frame;
 			std::vector<double> temp_approach_place_direction = approach_place_direction;
+			std::vector<std::string> temp_arm_group_names = arm_group_names;
 
 			if (goal->approach_place_direction_reference_frame != "" && !goal->approach_place_direction.empty()){
 				approach_place_direction_reference_frame = goal->approach_place_direction_reference_frame;
 				approach_place_direction = goal->approach_place_direction;
+			}
+
+			if (goal->robot_name != ""){
+				arm_group_names = {goal->robot_name};
 			}
 
 			createPlace(goal->object_name, goal->object_target_pose, goal->release_object_after_place, goal->object_subframe_to_place);
@@ -204,12 +215,18 @@ class Modules_Planner{
 
 			approach_place_direction_reference_frame = temp_approach_place_direction_reference_frame;
 			approach_place_direction = temp_approach_place_direction;
+			arm_group_names = temp_arm_group_names;
 			place_planning_server.setSucceeded(place_result);
 		}
 
 		void release_planning_server_cb(const moveit_task_constructor_msgs::ReleaseObjectGoalConstPtr& goal){
 			bool success = false;
 			moveit_task_constructor_msgs::Solution sol;
+			std::vector<std::string> temp_arm_group_names = arm_group_names;
+
+			if (goal->robot_name != ""){
+				arm_group_names = {goal->robot_name};
+			}
 
 			createReleaseRetreat(goal->object_name, goal->pose_to_retreat_to);
 
@@ -228,6 +245,7 @@ class Modules_Planner{
 			release_result.success = success;
 			release_result.solution = sol;
 
+			arm_group_names = temp_arm_group_names;
 			release_planning_server.setSucceeded(release_result);
 		}
 
@@ -236,10 +254,15 @@ class Modules_Planner{
 			moveit_task_constructor_msgs::Solution sol;
 			std::string temp_approach_place_direction_reference_frame = approach_place_direction_reference_frame;
 			std::vector<double> temp_approach_place_direction = approach_place_direction;
+			std::vector<std::string> temp_arm_group_names = arm_group_names;
 
 			if (goal->approach_place_direction_reference_frame != "" && !goal->approach_place_direction.empty()){
 				approach_place_direction_reference_frame = goal->approach_place_direction_reference_frame;
 				approach_place_direction = goal->approach_place_direction;
+			}
+
+			if (goal->robot_name != ""){
+				arm_group_names = {goal->robot_name};
 			}
 
 			createFasten(goal->object_name, goal->object_target_pose, goal->object_subframe_to_place);
@@ -262,6 +285,7 @@ class Modules_Planner{
 
 			approach_place_direction_reference_frame = temp_approach_place_direction_reference_frame;
 			approach_place_direction = temp_approach_place_direction;
+			arm_group_names = temp_arm_group_names;
 			fastening_planning_server.setSucceeded(place_result);
 		}
 
@@ -273,6 +297,7 @@ class Modules_Planner{
 			std::vector<double> temp_lift_direction = lift_direction;
 			std::string temp_approach_place_direction_reference_frame = approach_place_direction_reference_frame;
 			std::vector<double> temp_approach_place_direction = approach_place_direction;
+			std::vector<std::string> temp_arm_group_names = arm_group_names;
 
 			if (goal->grasp_parameter_location != ""){
 				grasp_parameter_location = goal->grasp_parameter_location;
@@ -288,7 +313,11 @@ class Modules_Planner{
 				approach_place_direction = goal->approach_place_direction;
 			}
 
-			createPickPlace(goal->object_name, goal->object_target_pose, goal->release_object_after_place, goal->object_subframe_to_place);
+			if (!goal->robot_names.empty()){
+				arm_group_names = goal->robot_names;
+			}
+
+			createPickPlace(goal->object_name, goal->object_target_pose, goal->release_object_after_place, goal->object_subframe_to_place, goal->force_robot_order);
 
 			try {
 				success = task_->plan(10);
@@ -311,6 +340,7 @@ class Modules_Planner{
 			lift_direction = temp_lift_direction;
 			approach_place_direction_reference_frame = temp_approach_place_direction_reference_frame;
 			approach_place_direction = temp_approach_place_direction;
+			arm_group_names = temp_arm_group_names;
 			pick_place_planning_server.setSucceeded(pick_place_result);
 		}
 
@@ -466,11 +496,9 @@ void Modules_Planner::init(){
 		robotinfo.robot_status = free;
 	}
 
-	for (std::string group : arm_group_names){
-		std::string hand_group_name = group + "_robotiq_85";
-		std::string hand_frame = hand_group_name + "_tip_link";
+	for (std::string group : hand_group_names){
+		std::string hand_frame = group + "_tip_link";
 
-		hand_group_names.push_back(hand_group_name);
 		hand_frames.push_back(hand_frame);
 	}
 
@@ -1309,8 +1337,12 @@ std::unique_ptr<SerialContainer> Modules_Planner::Pick_Place_with_Regrasp(const 
 std::unique_ptr<Alternatives> Modules_Planner::Pick_and_Lift_Alternatives(const std::string& object, bool this_is_start){
 	auto parallel = std::make_unique<Alternatives>("Pick '" + object + "'");
 
-	parallel->insert(std::move(Modules_Planner::Pick_and_Lift(object, "a_bot", this_is_start)));
-	parallel->insert(std::move(Modules_Planner::Pick_and_Lift(object, "b_bot", this_is_start)));
+	for (std::string arm_group_name : arm_group_names){
+		parallel->insert(std::move(Modules_Planner::Pick_and_Lift(object, arm_group_name, this_is_start)));
+	}
+
+	// parallel->insert(std::move(Modules_Planner::Pick_and_Lift(object, "a_bot", this_is_start)));
+	// parallel->insert(std::move(Modules_Planner::Pick_and_Lift(object, "b_bot", this_is_start)));
 
 	return parallel;
 }
@@ -1318,8 +1350,12 @@ std::unique_ptr<Alternatives> Modules_Planner::Pick_and_Lift_Alternatives(const 
 std::unique_ptr<Alternatives> Modules_Planner::Release_and_Retreat_Alternatives(const std::string& object, const std::string& pose_to_retreat_to, bool this_is_start){
 	auto parallel = std::make_unique<Alternatives>("Release '" + object + "' and retreat");
 
-	parallel->insert(std::move(Modules_Planner::Release_and_Retreat(object, "a_bot", pose_to_retreat_to, this_is_start)));
-	parallel->insert(std::move(Modules_Planner::Release_and_Retreat(object, "b_bot", pose_to_retreat_to, this_is_start)));
+	for (std::string arm_group_name : arm_group_names){
+		parallel->insert(std::move(Modules_Planner::Release_and_Retreat(object, arm_group_name, pose_to_retreat_to, this_is_start)));
+	}
+
+	// parallel->insert(std::move(Modules_Planner::Release_and_Retreat(object, "a_bot", pose_to_retreat_to, this_is_start)));
+	// parallel->insert(std::move(Modules_Planner::Release_and_Retreat(object, "b_bot", pose_to_retreat_to, this_is_start)));
 
 	return parallel;
 
@@ -1328,8 +1364,12 @@ std::unique_ptr<Alternatives> Modules_Planner::Release_and_Retreat_Alternatives(
 std::unique_ptr<Alternatives> Modules_Planner::Place_Alternatives(const std::string& object, const geometry_msgs::PoseStamped& target_pose, bool release_object, const std::string& object_subframe_to_place, bool this_is_start){
 	auto parallel = std::make_unique<Alternatives>("Place '" + object + "'");
 
-	parallel->insert(std::move(Modules_Planner::Place(object, target_pose, "a_bot", release_object, object_subframe_to_place, this_is_start)));
-	parallel->insert(std::move(Modules_Planner::Place(object, target_pose, "b_bot", release_object, object_subframe_to_place, this_is_start)));
+	for (std::string arm_group_name : arm_group_names){
+		parallel->insert(std::move(Modules_Planner::Place(object, target_pose, arm_group_name, release_object, object_subframe_to_place, this_is_start)));
+	}
+
+	// parallel->insert(std::move(Modules_Planner::Place(object, target_pose, "a_bot", release_object, object_subframe_to_place, this_is_start)));
+	// parallel->insert(std::move(Modules_Planner::Place(object, target_pose, "b_bot", release_object, object_subframe_to_place, this_is_start)));
 
 	return parallel;
 }
@@ -1337,8 +1377,13 @@ std::unique_ptr<Alternatives> Modules_Planner::Place_Alternatives(const std::str
 std::unique_ptr<Alternatives> Modules_Planner::Fasten_Alternatives(const std::string& object, const geometry_msgs::PoseStamped& target_pose, const std::string& object_subframe_to_place, bool this_is_start, const std::string& container_name){
 	auto parallel = std::make_unique<Alternatives>(container_name);
 
-	parallel->insert(std::move(Modules_Planner::Fasten(object, target_pose, "a_bot", object_subframe_to_place, this_is_start, container_name)));
-	parallel->insert(std::move(Modules_Planner::Fasten(object, target_pose, "b_bot", object_subframe_to_place, this_is_start, container_name)));
+
+	for (std::string arm_group_name : arm_group_names){
+		parallel->insert(std::move(Modules_Planner::Fasten(object, target_pose, arm_group_name, object_subframe_to_place, this_is_start, container_name)));
+	}
+
+	// parallel->insert(std::move(Modules_Planner::Fasten(object, target_pose, "a_bot", object_subframe_to_place, this_is_start, container_name)));
+	// parallel->insert(std::move(Modules_Planner::Fasten(object, target_pose, "b_bot", object_subframe_to_place, this_is_start, container_name)));
 
 	return parallel;
 }
@@ -1346,8 +1391,12 @@ std::unique_ptr<Alternatives> Modules_Planner::Fasten_Alternatives(const std::st
 std::unique_ptr<Alternatives> Modules_Planner::Fasten_Alternatives(const std::string& object, const std::vector<geometry_msgs::PoseStamped>& target_pose, const std::string& object_subframe_to_place, bool this_is_start, const std::string& container_name){
 	auto parallel = std::make_unique<Alternatives>(container_name);
 
-	parallel->insert(std::move(Modules_Planner::Fasten(object, target_pose, "a_bot", object_subframe_to_place, this_is_start, container_name)));
-	parallel->insert(std::move(Modules_Planner::Fasten(object, target_pose, "b_bot", object_subframe_to_place, this_is_start, container_name)));
+	for (std::string arm_group_name : arm_group_names){
+		parallel->insert(std::move(Modules_Planner::Fasten(object, target_pose, arm_group_name, object_subframe_to_place, this_is_start, container_name)));
+	}
+
+	// parallel->insert(std::move(Modules_Planner::Fasten(object, target_pose, "a_bot", object_subframe_to_place, this_is_start, container_name)));
+	// parallel->insert(std::move(Modules_Planner::Fasten(object, target_pose, "b_bot", object_subframe_to_place, this_is_start, container_name)));
 
 	return parallel;
 }
@@ -1363,24 +1412,47 @@ std::unique_ptr<Alternatives> Modules_Planner::Pick_Place_Alternatives(const std
 	return parallel;
 }
 
-std::unique_ptr<Fallbacks> Modules_Planner::Pick_Place_Fallback(const std::string& object, const geometry_msgs::PoseStamped& target_pose, bool release_object, const std::string& object_subframe_to_place){
+std::unique_ptr<Fallbacks> Modules_Planner::Pick_Place_Fallback(const std::string& object, const geometry_msgs::PoseStamped& target_pose, bool release_object, const std::string& object_subframe_to_place, bool force_robot_order){
 	auto parallel = std::make_unique<Fallbacks>("Pick-Place '" + object + "'");
 
 	auto single_robot_task_solutions = std::make_unique<Alternatives>("Pick-Place with single robot");
-	single_robot_task_solutions->insert(std::move(Modules_Planner::Pick_Place(object, target_pose, "a_bot", release_object, object_subframe_to_place)));
-	single_robot_task_solutions->insert(std::move(Modules_Planner::Pick_Place(object, target_pose, "b_bot", release_object, object_subframe_to_place)));
+
+	for (std::string arm_group_name : arm_group_names){
+		single_robot_task_solutions->insert(std::move(Modules_Planner::Pick_Place(object, target_pose, arm_group_name, release_object, object_subframe_to_place)));
+	}
+
+	// single_robot_task_solutions->insert(std::move(Modules_Planner::Pick_Place(object, target_pose, "a_bot", release_object, object_subframe_to_place)));
+	// single_robot_task_solutions->insert(std::move(Modules_Planner::Pick_Place(object, target_pose, "b_bot", release_object, object_subframe_to_place)));
 	
 	auto regrasp_task_solutions = std::make_unique<Alternatives>("Pick-Place with regrasp");
-	regrasp_task_solutions->insert(std::move(Modules_Planner::Pick_Place_with_Regrasp(object, target_pose, "a_bot", "b_bot", release_object, object_subframe_to_place)));
-	regrasp_task_solutions->insert(std::move(Modules_Planner::Pick_Place_with_Regrasp(object, target_pose, "b_bot", "a_bot", release_object, object_subframe_to_place)));
 
-	parallel->insert(std::move(single_robot_task_solutions));
-	parallel->insert(std::move(regrasp_task_solutions));
+	if (arm_group_names.size() > 1){
+
+		if (force_robot_order && arm_group_names.size() == 2){
+			regrasp_task_solutions->insert(std::move(Modules_Planner::Pick_Place_with_Regrasp(object, target_pose, arm_group_names[0], arm_group_names[1], release_object, object_subframe_to_place)));
+		} else {
+			for (std::string arm_group_name_1 : arm_group_names){
+				for (std::string arm_group_name_2 : arm_group_names){
+					if (arm_group_name_1 != arm_group_name_2){
+						regrasp_task_solutions->insert(std::move(Modules_Planner::Pick_Place_with_Regrasp(object, target_pose, arm_group_name_1, arm_group_name_2, release_object, object_subframe_to_place)));
+					}
+				}
+			}
+		}
+
+		// regrasp_task_solutions->insert(std::move(Modules_Planner::Pick_Place_with_Regrasp(object, target_pose, "a_bot", "b_bot", release_object, object_subframe_to_place)));
+		// regrasp_task_solutions->insert(std::move(Modules_Planner::Pick_Place_with_Regrasp(object, target_pose, "b_bot", "a_bot", release_object, object_subframe_to_place)));
+
+		parallel->insert(std::move(single_robot_task_solutions));
+		parallel->insert(std::move(regrasp_task_solutions));
+	} else {
+		parallel->insert(std::move(single_robot_task_solutions));
+	}
 
 	return parallel;
 }
 
-void Modules_Planner::createPickPlace(const std::string& object, const geometry_msgs::PoseStamped& target_pose, bool release_object, const std::string& object_subframe_to_place) {
+void Modules_Planner::createPickPlace(const std::string& object, const geometry_msgs::PoseStamped& target_pose, bool release_object, const std::string& object_subframe_to_place, bool force_robot_order) {
 	task_.reset();
 	task_.reset(new moveit::task_constructor::Task());
 	moveit::task_constructor::Task& t = *task_;
@@ -1390,7 +1462,7 @@ void Modules_Planner::createPickPlace(const std::string& object, const geometry_
 	robot_model_ = t.getRobotModel();
 
 	// t.add(Modules_Planner::Pick_Place_Alternatives(object, target_pose, false, object_subframe_to_place));
-	t.add(Modules_Planner::Pick_Place_Fallback(object, target_pose, release_object, object_subframe_to_place));
+	t.add(Modules_Planner::Pick_Place_Fallback(object, target_pose, release_object, object_subframe_to_place, force_robot_order));
 }
 
 void Modules_Planner::createPick(const std::string& object) {

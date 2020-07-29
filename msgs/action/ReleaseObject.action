@@ -1,6 +1,7 @@
 # Define the goal
 string object_name
 string pose_to_retreat_to   # If defined, the robot will move to the pose referred to by 'pose_to_retreat_to' with joint interpolation after releasing the object and retreating
+string robot_name
 
 string retreat_direction_reference_frame
 float64[] retreat_direction

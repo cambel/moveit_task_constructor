@@ -5,6 +5,7 @@ geometry_msgs/PoseStamped object_target_pose  # The target pose that the object 
 string object_subframe_to_place   # If defined, the target pose will be set for this subframe instead of the object's frame
 string approach_place_direction_reference_frame
 float64[] approach_place_direction
+string robot_name
 
 float64 approach_place_min_dist  # Minimum approach distance in the 'x' direction of the robot hand's frame
 float64 approach_place_max_dist  # Maximum approach distance in the 'x' direction of the robot hand's frame

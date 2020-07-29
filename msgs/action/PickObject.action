@@ -2,7 +2,8 @@
 string object_name
 string grasp_parameter_location  # The parameter under which grasp information is stored. See Readme for details on the parameter tree structure
 string lift_direction_reference_frame
-float64[] lift_direction  
+float64[] lift_direction
+string robot_name
 
 float64 lift_object_min_dist  # Minimum lift distance in the 'z' direction of the world frame
 float64 lift_object_max_dist  # Maximum lift distance in the 'z' direction of the world frame
