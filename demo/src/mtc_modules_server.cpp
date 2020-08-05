@@ -1296,6 +1296,13 @@ std::unique_ptr<SerialContainer> Modules_Planner::Pick_Place_with_Regrasp(const 
 
 	c->insert(std::move(Modules_Planner::Release_Object_and_Retreat(object)));
 
+	{
+	auto stage = std::make_unique<stages::MoveTo>("move_out_of_the_way", sampling_planner);
+		stage->setGroup(group);
+		stage->setGoal("tool_pick_ready");
+		c->insert(std::move(stage));
+	}
+
 	group = place_arm_group_name;
 	hand_group_name = group + "_robotiq_85";
 	hand_frame = hand_group_name + "_tip_link";
@@ -1533,50 +1540,88 @@ void Modules_Planner::createSubAssembly(const std::string& object, const geometr
 	lift_direction[1] = 0.0;
 	lift_direction[2] = 0.0;
 
+	// move to screw_tool_pickup pose
+	{
+	auto stage = std::make_unique<stages::MoveTo>("pick_tool_start", sampling_planner);
+		stage->setGroup("b_bot");
+		stage->setGoal("tool_pick_ready");
+		t.add(std::move(stage));
+	}
+
 	t.add(Modules_Planner::Pick_and_Lift_Alternatives(tool, false));
+
+	// move_back
+	{
+	auto stage = std::make_unique<stages::MoveTo>("pick_tool_end", sampling_planner);
+		stage->setGroup("b_bot");
+		stage->setGoal("tool_pick_ready");
+		t.add(std::move(stage));
+	}
+
+	// only allow one of the below (b_bot_outward)
 
 	geometry_msgs::PoseStamped screw_pickup_pose;
 	screw_pickup_pose.header.frame_id = screw_type + "_feeder_outlet_link";
 	screw_pickup_pose.pose.position.x = -0.01;
 	screw_pickup_pose.pose.position.y = 0;
 	screw_pickup_pose.pose.position.z = 0;
-	screw_pickup_pose.pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(2*M_PI/3, 0, 0);
+	screw_pickup_pose.pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(5*M_PI/3, 0, 0);
 
-	geometry_msgs::PoseStamped screw_pickup_pose_2;
-	screw_pickup_pose_2.header.frame_id = screw_type + "_feeder_outlet_link";
-	screw_pickup_pose_2.pose.position.x = -0.01;
-	screw_pickup_pose_2.pose.position.y = 0;
-	screw_pickup_pose_2.pose.position.z = 0;
-	screw_pickup_pose_2.pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(-2*M_PI/3, 0, 0);
+	// geometry_msgs::PoseStamped screw_pickup_pose_2;
+	// screw_pickup_pose_2.header.frame_id = screw_type + "_feeder_outlet_link";
+	// screw_pickup_pose_2.pose.position.x = -0.01;
+	// screw_pickup_pose_2.pose.position.y = 0;
+	// screw_pickup_pose_2.pose.position.z = 0;
+	// screw_pickup_pose_2.pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(M_PI/3, 0, 0);
 
-	std::vector<geometry_msgs::PoseStamped> screw_pickup_poses;
-	screw_pickup_poses.push_back(screw_pickup_pose);
-	screw_pickup_poses.push_back(screw_pickup_pose_2);
+	// std::vector<geometry_msgs::PoseStamped> screw_pickup_poses;
+	// screw_pickup_poses.push_back(screw_pickup_pose);
+	// screw_pickup_poses.push_back(screw_pickup_pose_2);
 
 	std::string screw_tool_tip_frame = tool + "/" + tool + "_tip";
 
-	t.add(Modules_Planner::Fasten_Alternatives(tool, screw_pickup_poses, screw_tool_tip_frame, false, "Pick up screw"));
-	// t.stages()->findChild("Fasten")->setName("Pick up screw");
+	// move to screw_pickup pose
+	{
+	auto stage = std::make_unique<stages::MoveTo>("pick_screw_start", sampling_planner);
+		stage->setGroup("b_bot");
+		stage->setGoal("feeder_pick_ready");
+		t.add(std::move(stage));
+	}
+
+	t.add(Modules_Planner::Fasten_Alternatives(tool, screw_pickup_pose, screw_tool_tip_frame, false, "Pick up screw"));
+
+	// move_back
+	{
+	auto stage = std::make_unique<stages::MoveTo>("pick_screw_end", sampling_planner);
+		stage->setGroup("b_bot");
+		stage->setGoal("feeder_pick_ready");
+		t.add(std::move(stage));
+	}
+
+	approach_place_direction_reference_frame = "panel_bearing/bottom_screw_hole_1";
+	approach_place_direction[0] = 1.0;
+	approach_place_direction[1] = 1.0;
+	approach_place_direction[2] = 1.0;
 
 	geometry_msgs::PoseStamped screwing_pose;
 	screwing_pose.header.frame_id = "panel_bearing/bottom_screw_hole_1";
-	screwing_pose.pose.position.x = -0.0001;
+	screwing_pose.pose.position.x = -0.01;
 	screwing_pose.pose.position.y = 0;
 	screwing_pose.pose.position.z = 0;
 	screwing_pose.pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(0, 0, 0);
 
-	geometry_msgs::PoseStamped screwing_pose_2;
-	screwing_pose_2.header.frame_id = "panel_bearing/bottom_screw_hole_1";
-	screwing_pose_2.pose.position.x = -0.0001;
-	screwing_pose_2.pose.position.y = 0;
-	screwing_pose_2.pose.position.z = 0;
-	screwing_pose_2.pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(M_PI, 0, 0);
+	// geometry_msgs::PoseStamped screwing_pose_2;
+	// screwing_pose_2.header.frame_id = "panel_bearing/bottom_screw_hole_1";
+	// screwing_pose_2.pose.position.x = -0.0001;
+	// screwing_pose_2.pose.position.y = 0;
+	// screwing_pose_2.pose.position.z = 0;
+	// screwing_pose_2.pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(M_PI, 0, 0);
 
-	std::vector<geometry_msgs::PoseStamped> screwing_poses;
-	screwing_poses.push_back(screwing_pose);
-	screwing_poses.push_back(screwing_pose_2);
+	// std::vector<geometry_msgs::PoseStamped> screwing_poses;
+	// screwing_poses.push_back(screwing_pose);
+	// screwing_poses.push_back(screwing_pose_2);
 
-	t.add(Modules_Planner::Fasten_Alternatives(tool, screwing_poses, screw_tool_tip_frame, false, "Fasten screw"));
+	t.add(Modules_Planner::Fasten_Alternatives(tool, screwing_pose, screw_tool_tip_frame, false, "Fasten screw"));
 
 	retreat_direction_reference_frame = "world";
 	retreat_direction[0] = 0;
@@ -1590,13 +1635,39 @@ void Modules_Planner::createSubAssembly(const std::string& object, const geometr
 	retreat_direction[1] = 0;
 	retreat_direction[2] = 0;
 
-	t.add(Modules_Planner::Fasten_Alternatives(tool, screw_pickup_poses, screw_tool_tip_frame, false, "Pick up screw"));
-	// t.stages()->findChild("Fasten")->setName("Pick up screw");
+	approach_place_direction_reference_frame = "world";
+	approach_place_direction[0] = 0.0;
+	approach_place_direction[1] = 0.0;
+	approach_place_direction[2] = -1.0;
 
-	screwing_poses[0].header.frame_id = "panel_bearing/bottom_screw_hole_2";
-	screwing_poses[1].header.frame_id = "panel_bearing/bottom_screw_hole_2";
+	// move to screw_pickup pose
+	{
+	auto stage = std::make_unique<stages::MoveTo>("pick_screw_start", sampling_planner);
+		stage->setGroup("b_bot");
+		stage->setGoal("feeder_pick_ready");
+		t.add(std::move(stage));
+	}
 
-	t.add(Modules_Planner::Fasten_Alternatives(tool, screwing_poses, screw_tool_tip_frame, false, "Fasten screw"));
+	t.add(Modules_Planner::Fasten_Alternatives(tool, screw_pickup_pose, screw_tool_tip_frame, false, "Pick up screw"));
+
+	// move_back
+	{
+	auto stage = std::make_unique<stages::MoveTo>("pick_screw_end", sampling_planner);
+		stage->setGroup("b_bot");
+		stage->setGoal("feeder_pick_ready");
+		t.add(std::move(stage));
+	}
+
+	approach_place_direction_reference_frame = "panel_bearing/bottom_screw_hole_1";
+	approach_place_direction[0] = 1.0;
+	approach_place_direction[1] = 1.0;
+	approach_place_direction[2] = 1.0;
+
+	// screwing_poses[0].header.frame_id = "panel_bearing/bottom_screw_hole_2";
+	// screwing_poses[1].header.frame_id = "panel_bearing/bottom_screw_hole_2";
+	screwing_pose.header.frame_id = "panel_bearing/bottom_screw_hole_2";
+
+	t.add(Modules_Planner::Fasten_Alternatives(tool, screwing_pose, screw_tool_tip_frame, false, "Fasten screw"));
 
 	geometry_msgs::PoseStamped screw_tool_place;
 	screw_tool_place.header.frame_id = "screw_tool_" + screw_type + "_link";
@@ -1610,8 +1681,23 @@ void Modules_Planner::createSubAssembly(const std::string& object, const geometr
 	approach_place_direction[1] = 0.0;
 	approach_place_direction[2] = 0.0;
 
+	// move to screw_tool_pickup pose
+	{
+	auto stage = std::make_unique<stages::MoveTo>("place_tool_start", sampling_planner);
+		stage->setGroup("b_bot");
+		stage->setGoal("tool_pick_ready");
+		t.add(std::move(stage));
+	}
+
 	t.add(Modules_Planner::Place_Alternatives(tool, screw_tool_place, true, "", false));
 
+	// move_back
+	{
+	auto stage = std::make_unique<stages::MoveTo>("place_tool_end", sampling_planner);
+		stage->setGroup("b_bot");
+		stage->setGoal("tool_pick_ready");
+		t.add(std::move(stage));
+	}
 }
 
 }
