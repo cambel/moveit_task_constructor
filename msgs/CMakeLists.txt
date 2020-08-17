@@ -27,7 +27,6 @@ add_service_files(DIRECTORY srv FILES
 
 add_action_files(DIRECTORY action FILES
 	ExecuteTaskSolution.action
-	PickPlacePlanning.action
 	PickPlaceWithRegrasp.action
 	PickObject.action
 	PlaceObject.action

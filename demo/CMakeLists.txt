@@ -69,8 +69,8 @@ target_link_libraries(pick_place_planning_action_server
   pick_place_task_for_action
   ${catkin_LIBRARIES}
 )
-
-install(TARGETS cartesian modular pick_place_demo
+ #--- more o2ac
+install(TARGETS ${PROJECT_NAME}_lib ${PROJECT_NAME}_demo
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

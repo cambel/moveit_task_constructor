@@ -72,22 +72,11 @@ namespace mtc_modules {
 constexpr char LOGNAME[] = "mtc_modules";
 using namespace moveit::task_constructor;
 
-enum RobotStatus{free, holding_object, holding_tool};
-
-struct RobotInfo{
-	std::string arm_group_name;
-	std::string hand_group_name;
-
-	std::string eef_name;
-
-	std::string hand_frame;
-
-	RobotStatus robot_status;
-};
-
+// Class for the action servers
 class Modules_Planner{
 	public:
 
+		// Start action servers when calling the constructor:
 		Modules_Planner(): pick_planning_server(Modules_Planner::nh, "pick_planning", boost::bind(&Modules_Planner::pick_planning_server_cb, this, _1), false),
 		place_planning_server(Modules_Planner::nh, "place_planning", boost::bind(&Modules_Planner::place_planning_server_cb, this, _1), false),
 		release_planning_server(Modules_Planner::nh, "release_planning", boost::bind(&Modules_Planner::release_planning_server_cb, this, _1), false),
@@ -104,8 +93,10 @@ class Modules_Planner{
 			ROS_INFO_NAMED(LOGNAME, "Starting MTC Modules action servers");
     	}
 
+		// Initialize internal parameters of the class
 		void init();
 
+		// Functions that are called to build the tasks
 		std::unique_ptr<SerialContainer> Pick_Object(const std::string& object);
 		std::unique_ptr<SerialContainer> Lift_Object(const std::string& object);
 		std::unique_ptr<SerialContainer> Pick_and_Lift(const std::string& object, const std::string& arm_group_name, bool this_is_start=true);
@@ -126,12 +117,19 @@ class Modules_Planner{
 		std::unique_ptr<Alternatives> Pick_Place_Alternatives(const std::string& object, const geometry_msgs::PoseStamped& target_pose, bool release_object=true, const std::string& object_subframe_to_place="");
 		std::unique_ptr<Fallbacks> Pick_Place_Fallback(const std::string& object, const geometry_msgs::PoseStamped& target_pose, bool release_object=true, const std::string& object_subframe_to_place="", bool force_robot_order = false);
 
+		// Task definitions
 		void createPickPlace(const std::string& object, const geometry_msgs::PoseStamped& target_pose, bool release_object=true, const std::string& object_subframe_to_place="", bool force_robot_order = false);
 		void createPick(const std::string& object);
 		void createPlace(const std::string& object, const geometry_msgs::PoseStamped& target_pose, bool release_object=true, const std::string& object_subframe_to_place="");
 		void createReleaseRetreat(const std::string& object, const std::string& pose_to_retreat_to="");
 		void createFasten(const std::string& object, const geometry_msgs::PoseStamped& target_pose, const std::string& object_subframe_to_place="");
 		void createSubAssembly(const std::string& object, const geometry_msgs::PoseStamped& target_pose, bool release_object=true, const std::string& object_subframe_to_place="");
+
+		/****************************************************
+		 *                                                  *
+		 *    Callback functions for the action servers     *
+		 *                                                  *
+		 ***************************************************/
 
 		void pick_planning_server_cb(const moveit_task_constructor_msgs::PickObjectGoalConstPtr& goal){
 			bool success = false;
@@ -161,7 +159,6 @@ class Modules_Planner{
 				if (success && task_->numSolutions() != 0){
 					ROS_INFO_NAMED(LOGNAME, "Planning succeeded");
 					task_->solutions().front()->fillMessage(sol);
-					// task.introspection().publishSolution(*task.solutions().front());
 				} else{
 					ROS_INFO_NAMED(LOGNAME, "Planning failed");
 				}
@@ -202,7 +199,6 @@ class Modules_Planner{
 				if (success && task_->numSolutions() != 0){
 					ROS_INFO_NAMED(LOGNAME, "Planning succeeded");
 					task_->solutions().front()->fillMessage(sol);
-					// task.introspection().publishSolution(*task.solutions().front());
 				} else{
 					ROS_INFO_NAMED(LOGNAME, "Planning failed");
 				}
@@ -272,7 +268,6 @@ class Modules_Planner{
 				if (success && task_->numSolutions() != 0){
 					ROS_INFO_NAMED(LOGNAME, "Planning succeeded");
 					task_->solutions().front()->fillMessage(sol);
-					// task.introspection().publishSolution(*task.solutions().front());
 				} else{
 					ROS_INFO_NAMED(LOGNAME, "Planning failed");
 				}
@@ -324,7 +319,6 @@ class Modules_Planner{
 				if (success && task_->numSolutions() != 0){
 					ROS_INFO_NAMED(LOGNAME, "Planning succeeded");
 					task_->solutions().front()->fillMessage(sol);
-					// task.introspection().publishSolution(*task.solutions().front());
 				} else{
 					ROS_INFO_NAMED(LOGNAME, "Planning failed");
 				}
@@ -374,7 +368,6 @@ class Modules_Planner{
 				if (success && task_->numSolutions() != 0){
 					ROS_INFO_NAMED(LOGNAME, "Planning succeeded");
 					task_->solutions().front()->fillMessage(sol);
-					// task.introspection().publishSolution(*task.solutions().front());
 				} else{
 					ROS_INFO_NAMED(LOGNAME, "Planning failed");
 				}
@@ -395,6 +388,8 @@ class Modules_Planner{
 
 	private:
 		ros::NodeHandle nh;
+
+		// Action servers and result messages
 		actionlib::SimpleActionServer<moveit_task_constructor_msgs::PickPlaceWithRegraspAction> pick_place_planning_server;
 		actionlib::SimpleActionServer<moveit_task_constructor_msgs::PickPlaceWithRegraspAction> sub_assembly_planning_server;
 		actionlib::SimpleActionServer<moveit_task_constructor_msgs::PickObjectAction> pick_planning_server;
@@ -406,6 +401,7 @@ class Modules_Planner{
 		moveit_task_constructor_msgs::PlaceObjectResult place_result;
 		moveit_task_constructor_msgs::ReleaseObjectResult release_result;
 
+		// The task (whenever there is a call for an action server this task is reset)
 		moveit::task_constructor::TaskPtr task_;
 
 		// Planners
@@ -432,9 +428,6 @@ class Modules_Planner{
 		Stage* attach_object_stage;
 		Stage* lift_object_stage;
 
-		// Robots
-		std::vector<RobotInfo> robots_info;
-
 		// Grasp parameter namespace
 		std::string grasp_parameter_location;
 
@@ -455,8 +448,9 @@ class Modules_Planner{
 };
 
 void Modules_Planner::init(){
+	// Initializing internal parameters of the class
 
-	// Load requred params from the param server
+	// Load required params from the param server
 	ROS_INFO_NAMED(LOGNAME, "Initializing Modules Planner");
 	ros::NodeHandle pnh("~");
 
@@ -483,25 +477,15 @@ void Modules_Planner::init(){
 	sampling_planner = std::make_shared<solvers::PipelinePlanner>();
 	sampling_planner->setProperty("goal_joint_tolerance", 1e-5);
 
-	for (std::size_t n = 0; n < std::min( arm_group_names.size(), hand_group_names.size() ); n++)
-	{
-		RobotInfo robotinfo;
-		robotinfo.arm_group_name = arm_group_names[n];
-		robotinfo.hand_group_name = hand_group_names[n];
 
-		robotinfo.eef_name = arm_group_names[n] + "_tip";
-
-		robotinfo.hand_frame = hand_group_names[n] + "_tip_link";
-
-		robotinfo.robot_status = free;
-	}
-
+	// Init hand frames
 	for (std::string group : hand_group_names){
 		std::string hand_frame = group + "_tip_link";
 
 		hand_frames.push_back(hand_frame);
 	}
 
+	// Init current robot
 	group = arm_group_names[0];
 	hand_group_name = hand_group_names[0];
 	hand_frame = hand_frames[0];
@@ -553,11 +537,13 @@ std::unique_ptr<SerialContainer> Modules_Planner::Pick_Object(const std::string&
 		stage->properties().set("link", hand_frame);
 		stage->properties().set("group", group);
 		stage->setMinMaxDistance(0.1, 0.15);
-		// stage->setMinMaxDistance(approach_object_min_dist_, approach_object_max_dist_);     !!!!!!!!!!!!!!!!!!!!!!!!!!!! PARAMS
+		// stage->setMinMaxDistance(approach_object_min_dist_, approach_object_max_dist_);
+		//TODO: Make this parameterizable instead of hard-coded for 0.1 and 0.15
 
 		// Set hand forward direction
 		geometry_msgs::Vector3Stamped vec;
-		vec.header.frame_id = hand_frame;  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Like retreat direction
+		vec.header.frame_id = hand_frame;
+		//TODO: Make this parameterizable instead of hard-coded for hand frame and x direction (see retreat_direction_reference_frame and retreat_direction)
 		vec.vector.x = 1.0;
 		stage->setDirection(vec);
 		c->insert(std::move(stage));
@@ -576,7 +562,7 @@ std::unique_ptr<SerialContainer> Modules_Planner::Pick_Object(const std::string&
 		stage->setAssembly(grasp_parameter_location);
 		stage->setObject(object);
 		stage->setMonitoredStage(current_state_stage);  // Hook into current state
-		stage->setEndEffector(group + "_tip");  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!Define above
+		stage->setEndEffector(group + "_tip");
 
 		// Compute IK
 		auto wrapper = std::make_unique<stages::ComputeIK>("grasp pose IK", std::move(stage));
@@ -618,7 +604,6 @@ std::unique_ptr<SerialContainer> Modules_Planner::Pick_Object(const std::string&
 }
 
 std::unique_ptr<SerialContainer> Modules_Planner::Lift_Object(const std::string& object){
-	// lift_object_stage = nullptr;
 	auto c = std::make_unique<SerialContainer>("Lift '" + object + "' with " + group);
 
 	/****************************************************
@@ -641,7 +626,7 @@ std::unique_ptr<SerialContainer> Modules_Planner::Lift_Object(const std::string&
 	 ***************************************************/
 	{
 		auto stage = std::make_unique<stages::ModifyPlanningScene>("allow collision (object,support)");
-		stage->allowCollisions({ object }, support_surfaces, true);                       // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!PARAM
+		stage->allowCollisions({ object }, support_surfaces, true);
 		c->insert(std::move(stage));
 	}
 
@@ -653,7 +638,8 @@ std::unique_ptr<SerialContainer> Modules_Planner::Lift_Object(const std::string&
 	{
 		auto stage = std::make_unique<stages::MoveRelative>("lift object", cartesian_planner);
 		stage->properties().set("group", group);
-		stage->setMinMaxDistance(0.1, 0.15);           // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!PARAMS
+		stage->setMinMaxDistance(0.1, 0.15);
+		//TODO: Make this parameterizable instead of hard-coded for 0.1 and 0.15
 		stage->setIKFrame(hand_frame);
 		stage->properties().set("marker_ns", "lift_object");
 
@@ -674,7 +660,7 @@ std::unique_ptr<SerialContainer> Modules_Planner::Lift_Object(const std::string&
 	 ***************************************************/
 	{
 		auto stage = std::make_unique<stages::ModifyPlanningScene>("forbid collision (object,surface)");
-		stage->allowCollisions({ object }, support_surfaces, false);                   //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!PARAM
+		stage->allowCollisions({ object }, support_surfaces, false);
 		lift_object_stage = stage.get();
 		c->insert(std::move(stage));
 	}
@@ -694,7 +680,6 @@ std::unique_ptr<SerialContainer> Modules_Planner::Pick_and_Lift(const std::strin
 	 *               Current State                      *
 	 *                                                  *
 	 ***************************************************/
-	// current_state_stage = nullptr;  // Forward current_state on to grasp pose generator
 	{
 		std::unique_ptr<moveit::task_constructor::stages::PredicateFilter> applicability_filter;
 		auto _current_state = std::make_unique<stages::CurrentState>("'before pick' state");
@@ -742,7 +727,8 @@ std::unique_ptr<SerialContainer> Modules_Planner::Place_Object(const std::string
 		stage->properties().set("marker_ns", "lower_object");
 		stage->properties().set("link", hand_frame);
 		stage->properties().set("group", group);
-		stage->setMinMaxDistance(.03, .13);              //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+		stage->setMinMaxDistance(.03, .13);
+		//TODO: Make this parameterizable instead of hard-coded for 0.03 and 0.13
 
 		// Set downward direction
 		geometry_msgs::Vector3Stamped vec;
@@ -767,7 +753,6 @@ std::unique_ptr<SerialContainer> Modules_Planner::Place_Object(const std::string
 		stage->setObject(object);
 		stage->setSubframe(object_subframe_to_place);  // The subframe has to be named according to 'object_name/subframe_name' convention
 
-        //place_pose_.pose.position.x -= place_surface_offset_;            //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 		stage->setPose(target_pose);
 		stage->setMonitoredStage(attach_object_stage);  // Hook into attach_object_stage
 
@@ -796,7 +781,8 @@ std::unique_ptr<SerialContainer> Modules_Planner::Place_Object(const std::string
 		stage->properties().set("marker_ns", "lower_object");
 		stage->properties().set("link", hand_frame);
 		stage->properties().set("group", group);
-		stage->setMinMaxDistance(.03, .13);              //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+		stage->setMinMaxDistance(.03, .13);
+		//TODO: Make this parameterizable instead of hard-coded for 0.03 and 0.13
 
 		// Set downward direction
 		geometry_msgs::Vector3Stamped vec;
@@ -821,7 +807,6 @@ std::unique_ptr<SerialContainer> Modules_Planner::Place_Object(const std::string
 		stage->setObject(object);
 		stage->setSubframe(object_subframe_to_place);  // The subframe has to be named according to 'object_name/subframe_name' convention
 
-        //place_pose_.pose.position.x -= place_surface_offset_;            //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 		stage->setPose(target_pose);
 		stage->setMonitoredStage(attach_object_stage);  // Hook into attach_object_stage
 
@@ -883,7 +868,8 @@ std::unique_ptr<SerialContainer> Modules_Planner::Release_Object_and_Retreat(con
 	//  *****************************************************/
 	{
 		auto stage = std::make_unique<stages::MoveRelative>("retreat after place", cartesian_planner);
-		stage->setMinMaxDistance(.05, .1);                          //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+		stage->setMinMaxDistance(.05, .1);
+		//TODO: Make this parameterizable instead of hard-coded for 0.1 and 0.15
 		stage->setIKFrame(hand_frame);
 		stage->properties().set("marker_ns", "retreat");
 		stage->properties().set("group", group);
@@ -979,7 +965,6 @@ std::unique_ptr<SerialContainer> Modules_Planner::Place(const std::string& objec
 	 *               Current State                      *
 	 *                                                  *
 	 ***************************************************/
-	// current_state_stage = nullptr;  // Forward current_state on to grasp pose generator
 	{
 		std::unique_ptr<moveit::task_constructor::stages::PredicateFilter> applicability_filter;
 		auto _current_state = std::make_unique<stages::CurrentState>("current state");
@@ -1047,7 +1032,6 @@ std::unique_ptr<SerialContainer> Modules_Planner::Fasten(const std::string& obje
 	 *               Current State                      *
 	 *                                                  *
 	 ***************************************************/
-	// current_state_stage = nullptr;  // Forward current_state on to grasp pose generator
 	{
 		std::unique_ptr<moveit::task_constructor::stages::PredicateFilter> applicability_filter;
 		auto _current_state = std::make_unique<stages::CurrentState>(container_name + " start state");
@@ -1104,7 +1088,8 @@ std::unique_ptr<SerialContainer> Modules_Planner::Fasten(const std::string& obje
 	//  *****************************************************/
 	{
 		auto stage = std::make_unique<stages::MoveRelative>("Retreat", cartesian_planner);
-		stage->setMinMaxDistance(.05, .1);                          //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+		stage->setMinMaxDistance(.05, .1);
+		//TODO: Make this parameterizable instead of hard-coded for 0.05 and 0.1
 		stage->setIKFrame(hand_frame);
 		stage->properties().set("marker_ns", "retreat");
 		stage->properties().set("group", group);
@@ -1134,7 +1119,6 @@ std::unique_ptr<SerialContainer> Modules_Planner::Fasten(const std::string& obje
 	 *               Current State                      *
 	 *                                                  *
 	 ***************************************************/
-	// current_state_stage = nullptr;  // Forward current_state on to grasp pose generator
 	{
 		std::unique_ptr<moveit::task_constructor::stages::PredicateFilter> applicability_filter;
 		auto _current_state = std::make_unique<stages::CurrentState>(container_name + " start state");
@@ -1191,7 +1175,8 @@ std::unique_ptr<SerialContainer> Modules_Planner::Fasten(const std::string& obje
 	//  *****************************************************/
 	{
 		auto stage = std::make_unique<stages::MoveRelative>("Retreat", cartesian_planner);
-		stage->setMinMaxDistance(.05, .1);                          //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+		stage->setMinMaxDistance(.05, .1);
+		//TODO: Make this parameterizable instead of hard-coded for 0.05 and 0.1
 		stage->setIKFrame(hand_frame);
 		stage->properties().set("marker_ns", "retreat");
 		stage->properties().set("group", group);
@@ -1251,7 +1236,7 @@ std::unique_ptr<SerialContainer> Modules_Planner::Pick_Place_with_Regrasp(const 
 	c->insert(std::move(Modules_Planner::Pick_and_Lift(object, group)));
 
 
-	geometry_msgs::PoseStamped handover_pose;                          // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! DATA MEMBER?
+	geometry_msgs::PoseStamped handover_pose; //TODO: Make this a data member of the class and load it at init from the param server
 	handover_pose.header.frame_id = "workspace_center";
 	handover_pose.pose.orientation.w = 1.0;
 	handover_pose.pose.position.z = 0.25;
@@ -1278,7 +1263,6 @@ std::unique_ptr<SerialContainer> Modules_Planner::Pick_Place_with_Regrasp(const 
 		wrapper->setIKFrame(hand_frame);
 		wrapper->properties().set("group", group);
 		wrapper->setEndEffector(group + "_tip");
-		// wrapper->properties().configureInitFrom(Stage::PARENT, { "eef", "group" });
 		wrapper->properties().configureInitFrom(Stage::INTERFACE, { "target_pose" });
 		c->insert(std::move(wrapper));
 	}
@@ -1347,10 +1331,6 @@ std::unique_ptr<Alternatives> Modules_Planner::Pick_and_Lift_Alternatives(const 
 	for (std::string arm_group_name : arm_group_names){
 		parallel->insert(std::move(Modules_Planner::Pick_and_Lift(object, arm_group_name, this_is_start)));
 	}
-
-	// parallel->insert(std::move(Modules_Planner::Pick_and_Lift(object, "a_bot", this_is_start)));
-	// parallel->insert(std::move(Modules_Planner::Pick_and_Lift(object, "b_bot", this_is_start)));
-
 	return parallel;
 }
 
@@ -1360,10 +1340,6 @@ std::unique_ptr<Alternatives> Modules_Planner::Release_and_Retreat_Alternatives(
 	for (std::string arm_group_name : arm_group_names){
 		parallel->insert(std::move(Modules_Planner::Release_and_Retreat(object, arm_group_name, pose_to_retreat_to, this_is_start)));
 	}
-
-	// parallel->insert(std::move(Modules_Planner::Release_and_Retreat(object, "a_bot", pose_to_retreat_to, this_is_start)));
-	// parallel->insert(std::move(Modules_Planner::Release_and_Retreat(object, "b_bot", pose_to_retreat_to, this_is_start)));
-
 	return parallel;
 
 }
@@ -1374,10 +1350,6 @@ std::unique_ptr<Alternatives> Modules_Planner::Place_Alternatives(const std::str
 	for (std::string arm_group_name : arm_group_names){
 		parallel->insert(std::move(Modules_Planner::Place(object, target_pose, arm_group_name, release_object, object_subframe_to_place, this_is_start)));
 	}
-
-	// parallel->insert(std::move(Modules_Planner::Place(object, target_pose, "a_bot", release_object, object_subframe_to_place, this_is_start)));
-	// parallel->insert(std::move(Modules_Planner::Place(object, target_pose, "b_bot", release_object, object_subframe_to_place, this_is_start)));
-
 	return parallel;
 }
 
@@ -1388,10 +1360,6 @@ std::unique_ptr<Alternatives> Modules_Planner::Fasten_Alternatives(const std::st
 	for (std::string arm_group_name : arm_group_names){
 		parallel->insert(std::move(Modules_Planner::Fasten(object, target_pose, arm_group_name, object_subframe_to_place, this_is_start, container_name)));
 	}
-
-	// parallel->insert(std::move(Modules_Planner::Fasten(object, target_pose, "a_bot", object_subframe_to_place, this_is_start, container_name)));
-	// parallel->insert(std::move(Modules_Planner::Fasten(object, target_pose, "b_bot", object_subframe_to_place, this_is_start, container_name)));
-
 	return parallel;
 }
 
@@ -1401,10 +1369,6 @@ std::unique_ptr<Alternatives> Modules_Planner::Fasten_Alternatives(const std::st
 	for (std::string arm_group_name : arm_group_names){
 		parallel->insert(std::move(Modules_Planner::Fasten(object, target_pose, arm_group_name, object_subframe_to_place, this_is_start, container_name)));
 	}
-
-	// parallel->insert(std::move(Modules_Planner::Fasten(object, target_pose, "a_bot", object_subframe_to_place, this_is_start, container_name)));
-	// parallel->insert(std::move(Modules_Planner::Fasten(object, target_pose, "b_bot", object_subframe_to_place, this_is_start, container_name)));
-
 	return parallel;
 }
 
@@ -1427,9 +1391,6 @@ std::unique_ptr<Fallbacks> Modules_Planner::Pick_Place_Fallback(const std::strin
 	for (std::string arm_group_name : arm_group_names){
 		single_robot_task_solutions->insert(std::move(Modules_Planner::Pick_Place(object, target_pose, arm_group_name, release_object, object_subframe_to_place)));
 	}
-
-	// single_robot_task_solutions->insert(std::move(Modules_Planner::Pick_Place(object, target_pose, "a_bot", release_object, object_subframe_to_place)));
-	// single_robot_task_solutions->insert(std::move(Modules_Planner::Pick_Place(object, target_pose, "b_bot", release_object, object_subframe_to_place)));
 	
 	auto regrasp_task_solutions = std::make_unique<Alternatives>("Pick-Place with regrasp");
 
@@ -1446,9 +1407,6 @@ std::unique_ptr<Fallbacks> Modules_Planner::Pick_Place_Fallback(const std::strin
 				}
 			}
 		}
-
-		// regrasp_task_solutions->insert(std::move(Modules_Planner::Pick_Place_with_Regrasp(object, target_pose, "a_bot", "b_bot", release_object, object_subframe_to_place)));
-		// regrasp_task_solutions->insert(std::move(Modules_Planner::Pick_Place_with_Regrasp(object, target_pose, "b_bot", "a_bot", release_object, object_subframe_to_place)));
 
 		parallel->insert(std::move(single_robot_task_solutions));
 		parallel->insert(std::move(regrasp_task_solutions));
@@ -1468,7 +1426,7 @@ void Modules_Planner::createPickPlace(const std::string& object, const geometry_
 
 	robot_model_ = t.getRobotModel();
 
-	// t.add(Modules_Planner::Pick_Place_Alternatives(object, target_pose, false, object_subframe_to_place));
+	// t.add(Modules_Planner::Pick_Place_Alternatives(object, target_pose, false, object_subframe_to_place));  // In case we want it as an alternative and not fallback
 	t.add(Modules_Planner::Pick_Place_Fallback(object, target_pose, release_object, object_subframe_to_place, force_robot_order));
 }
 
@@ -1529,6 +1487,7 @@ void Modules_Planner::createSubAssembly(const std::string& object, const geometr
 
 	robot_model_ = t.getRobotModel();
 
+	// pick-place object
 	t.add(Modules_Planner::Pick_Place_Fallback(object, target_pose, release_object, object_subframe_to_place));
 
 	grasp_parameter_location = "tools";
@@ -1548,9 +1507,10 @@ void Modules_Planner::createSubAssembly(const std::string& object, const geometr
 		t.add(std::move(stage));
 	}
 
+	// pick screw tool
 	t.add(Modules_Planner::Pick_and_Lift_Alternatives(tool, false));
 
-	// move_back
+	// move back
 	{
 	auto stage = std::make_unique<stages::MoveTo>("pick_tool_end", sampling_planner);
 		stage->setGroup("b_bot");
@@ -1558,25 +1518,12 @@ void Modules_Planner::createSubAssembly(const std::string& object, const geometr
 		t.add(std::move(stage));
 	}
 
-	// only allow one of the below (b_bot_outward)
-
 	geometry_msgs::PoseStamped screw_pickup_pose;
 	screw_pickup_pose.header.frame_id = screw_type + "_feeder_outlet_link";
 	screw_pickup_pose.pose.position.x = -0.01;
 	screw_pickup_pose.pose.position.y = 0;
 	screw_pickup_pose.pose.position.z = 0;
 	screw_pickup_pose.pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(5*M_PI/3, 0, 0);
-
-	// geometry_msgs::PoseStamped screw_pickup_pose_2;
-	// screw_pickup_pose_2.header.frame_id = screw_type + "_feeder_outlet_link";
-	// screw_pickup_pose_2.pose.position.x = -0.01;
-	// screw_pickup_pose_2.pose.position.y = 0;
-	// screw_pickup_pose_2.pose.position.z = 0;
-	// screw_pickup_pose_2.pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(M_PI/3, 0, 0);
-
-	// std::vector<geometry_msgs::PoseStamped> screw_pickup_poses;
-	// screw_pickup_poses.push_back(screw_pickup_pose);
-	// screw_pickup_poses.push_back(screw_pickup_pose_2);
 
 	std::string screw_tool_tip_frame = tool + "/" + tool + "_tip";
 
@@ -1588,9 +1535,10 @@ void Modules_Planner::createSubAssembly(const std::string& object, const geometr
 		t.add(std::move(stage));
 	}
 
+	// pick up screw
 	t.add(Modules_Planner::Fasten_Alternatives(tool, screw_pickup_pose, screw_tool_tip_frame, false, "Pick up screw"));
 
-	// move_back
+	// move back
 	{
 	auto stage = std::make_unique<stages::MoveTo>("pick_screw_end", sampling_planner);
 		stage->setGroup("b_bot");
@@ -1610,17 +1558,7 @@ void Modules_Planner::createSubAssembly(const std::string& object, const geometr
 	screwing_pose.pose.position.z = 0;
 	screwing_pose.pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(0, 0, 0);
 
-	// geometry_msgs::PoseStamped screwing_pose_2;
-	// screwing_pose_2.header.frame_id = "panel_bearing/bottom_screw_hole_1";
-	// screwing_pose_2.pose.position.x = -0.0001;
-	// screwing_pose_2.pose.position.y = 0;
-	// screwing_pose_2.pose.position.z = 0;
-	// screwing_pose_2.pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(M_PI, 0, 0);
-
-	// std::vector<geometry_msgs::PoseStamped> screwing_poses;
-	// screwing_poses.push_back(screwing_pose);
-	// screwing_poses.push_back(screwing_pose_2);
-
+	// fasten screw
 	t.add(Modules_Planner::Fasten_Alternatives(tool, screwing_pose, screw_tool_tip_frame, false, "Fasten screw"));
 
 	retreat_direction_reference_frame = "world";
@@ -1628,6 +1566,7 @@ void Modules_Planner::createSubAssembly(const std::string& object, const geometr
 	retreat_direction[1] = 0;
 	retreat_direction[2] = 1;
 
+	// release object and retreat
 	t.add(Modules_Planner::Release_and_Retreat_Alternatives(object, "home", false));
 
 	retreat_direction_reference_frame = "";
@@ -1648,9 +1587,10 @@ void Modules_Planner::createSubAssembly(const std::string& object, const geometr
 		t.add(std::move(stage));
 	}
 
+	// pick up screw
 	t.add(Modules_Planner::Fasten_Alternatives(tool, screw_pickup_pose, screw_tool_tip_frame, false, "Pick up screw"));
 
-	// move_back
+	// move back
 	{
 	auto stage = std::make_unique<stages::MoveTo>("pick_screw_end", sampling_planner);
 		stage->setGroup("b_bot");
@@ -1663,10 +1603,9 @@ void Modules_Planner::createSubAssembly(const std::string& object, const geometr
 	approach_place_direction[1] = 1.0;
 	approach_place_direction[2] = 1.0;
 
-	// screwing_poses[0].header.frame_id = "panel_bearing/bottom_screw_hole_2";
-	// screwing_poses[1].header.frame_id = "panel_bearing/bottom_screw_hole_2";
 	screwing_pose.header.frame_id = "panel_bearing/bottom_screw_hole_2";
 
+	// fasten screw
 	t.add(Modules_Planner::Fasten_Alternatives(tool, screwing_pose, screw_tool_tip_frame, false, "Fasten screw"));
 
 	geometry_msgs::PoseStamped screw_tool_place;
@@ -1689,6 +1628,7 @@ void Modules_Planner::createSubAssembly(const std::string& object, const geometr
 		t.add(std::move(stage));
 	}
 
+	// place screw tool
 	t.add(Modules_Planner::Place_Alternatives(tool, screw_tool_place, true, "", false));
 
 	// move_back
