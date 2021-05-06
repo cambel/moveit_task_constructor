@@ -29,6 +29,10 @@ add_library(${PROJECT_NAME}_stages
 	current_state.cpp
 	fixed_state.cpp
 	fixed_cartesian_poses.cpp
+  grasp_provider_base.cpp
+						${PROJECT_INCLUDE}/stages/grasp_provider_base.h
+  place_provider_base.cpp
+						${PROJECT_INCLUDE}/stages/place_provider_base.h
 	generate_pose.cpp
 	load_grasp_pose.cpp
 	generate_grasp_pose.cpp
@@ -55,3 +59,17 @@ target_link_libraries(${PROJECT_NAME}_stage_plugins ${PROJECT_NAME}_stages ${cat
 install(TARGETS ${PROJECT_NAME}_stages ${PROJECT_NAME}_stage_plugins
 	ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 	LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION})
+
+add_library(${PROJECT_NAME}_providers
+	${PROJECT_INCLUDE}/stages/grasp_provider.h
+	${PROJECT_INCLUDE}/stages/place_provider.h
+						${PROJECT_INCLUDE}/stages/place_provider_base.h
+						${PROJECT_INCLUDE}/stages/grasp_provider_base.h
+	grasp_provider.cpp
+	place_provider.cpp
+)
+target_link_libraries(${PROJECT_NAME}_providers ${PROJECT_NAME} ${PROJECT_NAME}_stages ${catkin_LIBRARIES})
+
+install(TARGETS ${PROJECT_NAME}_providers
+				ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+				LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION})

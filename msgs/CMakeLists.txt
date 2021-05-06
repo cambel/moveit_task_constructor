@@ -31,6 +31,7 @@ add_action_files(DIRECTORY action FILES
 	PickObject.action
 	PlaceObject.action
 	ReleaseObject.action
+	PlanPickPlace.action
 )
 
 generate_messages(DEPENDENCIES ${MSG_DEPS})

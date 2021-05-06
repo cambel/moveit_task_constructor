@@ -1,67 +1,159 @@
 #include <moveit/task_constructor/stages/pick.h>
 
 #include <moveit/task_constructor/solvers/cartesian_path.h>
+#include <moveit/task_constructor/solvers/pipeline_planner.h>
 
 #include <moveit/task_constructor/container.h>
 #include <moveit/task_constructor/stages/move_relative.h>
+#include <moveit/task_constructor/stages/grasp_provider.h>
+#include <moveit/task_constructor/stages/place_provider.h>
+#include <moveit/task_constructor/stages/compute_ik.h>
+#include <moveit/task_constructor/stages/modify_planning_scene.h>
+#include <moveit/task_constructor/stages/move_to.h>
 
 #include <moveit/planning_scene/planning_scene.h>
+
+#include <eigen_conversions/eigen_msg.h>
+#include "moveit/task_constructor/stages/grasp_provider_base.h"
+#include "moveit/task_constructor/stages/place_provider_base.h"
 
 namespace moveit {
 namespace task_constructor {
 namespace stages {
 
-PickPlaceBase::PickPlaceBase(Stage::pointer&& grasp_stage, const std::string& name, bool forward)
+template <class C>
+PickPlaceBase<C>::PickPlaceBase(const std::string& name, const std::string& provider_stage_plugin_name, bool is_pick, pluginlib::ClassLoader<C>* class_loader)
   : SerialContainer(name) {
 	PropertyMap& p = properties();
-	p.declare<std::string>("object", "name of object to grasp");
+	p.declare<std::string>("object", "name of object to grasp/place");
 	p.declare<std::string>("eef", "end effector name");
-	p.declare<std::string>("eef_frame", "name of end effector frame");
+	p.declare<geometry_msgs::PoseStamped>("ik_frame", "frame to be moved towards goal pose");
+	p.declare<std::vector<std::string>>("support_surfaces", {}, "Name of support surfaces");
 
 	// internal properties (cannot be marked as such yet)
 	p.declare<std::string>("eef_group", "JMG of eef");
 	p.declare<std::string>("eef_parent_group", "JMG of eef's parent");
 
 	cartesian_solver_ = std::make_shared<solvers::CartesianPath>();
-	int insertion_position = forward ? -1 : 0;  // insert children at end / front, i.e. normal or reverse order
+	sampling_planner_ = std::make_shared<solvers::PipelinePlanner>();
 
-	auto init_ik_frame = [](const PropertyMap& other) -> boost::any {
-		geometry_msgs::PoseStamped pose;
-		const boost::any& frame = other.get("eef_frame");
-		if (frame.empty())
-			return boost::any();
+	is_pick_ = is_pick;
 
-		pose.header.frame_id = boost::any_cast<std::string>(frame);
-		pose.pose.orientation.w = 1.0;
-		return pose;
-	};
+	provider_stage_plugin_name_ = provider_stage_plugin_name;
 
 	{
-		auto approach = std::make_unique<MoveRelative>(forward ? "approach object" : "retract", cartesian_solver_);
-		PropertyMap& p = approach->properties();
+		auto move_there = std::make_unique<MoveRelative>(is_pick_ ? "approach object" : "lower object", cartesian_solver_);
+		PropertyMap& p = move_there->properties();
 		p.property("group").configureInitFrom(Stage::PARENT, "eef_parent_group");
-		p.property("ik_frame").configureInitFrom(Stage::PARENT, init_ik_frame);
-		p.set("marker_ns", std::string(forward ? "approach" : "retract"));
-		approach_stage_ = approach.get();
-		insert(std::move(approach), insertion_position);
+		p.property("ik_frame").configureInitFrom(Stage::PARENT, "ik_frame");
+		p.set("marker_ns", std::string(is_pick_ ? "approach" : "place"));
+		p.property("direction").configureInitFrom(Stage::INTERFACE, "approach_direction");
+		p.property("min_distance").configureInitFrom(Stage::INTERFACE, "approach_min_dist");
+		p.property("max_distance").configureInitFrom(Stage::INTERFACE, "approach_max_dist");
+		move_there_stage_ = move_there.get();
+		insert(std::move(move_there));
 	}
 
-	grasp_stage_ = grasp_stage.get();
-	grasp_stage->properties().configureInitFrom(Stage::PARENT, { "eef", "object" });
-	insert(std::move(grasp_stage), insertion_position);
+	if (provider_stage_plugin_name_ == "")
+	{
+		if (is_pick_)
+			provider_stage_plugin_name_ = "moveit_task_constructor/GraspProviderDefault";
+		else
+			provider_stage_plugin_name_ = "moveit_task_constructor/PlaceProviderDefault";
+		ROS_WARN_STREAM("The given name of the provider stage plugin is an empty string, using the default plugin (" << provider_stage_plugin_name_ << ") instead!");
+	}
+
+	try
+	{
+		std::unique_ptr<ComputeIK> wrapper;
+		if (is_pick_) {
+			std::unique_ptr<C> provider_stage_plugin(class_loader->createUnmanagedInstance(provider_stage_plugin_name_));
+			provider_stage_plugin->properties().configureInitFrom(Stage::PARENT);
+			provider_stage_plugin->properties().set("marker_ns", "grasp_pose");
+			provider_plugin_stage_ = provider_stage_plugin.get();
+
+			wrapper = std::make_unique<ComputeIK>("grasp pose IK", std::move(provider_stage_plugin));
+		}
+		else {
+			std::unique_ptr<C> provider_stage_plugin(class_loader->createUnmanagedInstance(provider_stage_plugin_name_));
+			provider_stage_plugin->properties().configureInitFrom(Stage::PARENT);
+			provider_stage_plugin->properties().set("marker_ns", "place_pose");
+			provider_plugin_stage_ = provider_stage_plugin.get();
+
+			wrapper = std::make_unique<ComputeIK>("place pose IK", std::move(provider_stage_plugin));
+		}
+
+		properties().exposeTo(wrapper->properties(), {"object"});
+		wrapper->properties().configureInitFrom(Stage::PARENT, { "eef", "group", "ik_frame", "object"});
+		wrapper->setForwardedProperties({"approach_direction", "approach_min_dist", "approach_max_dist", "retreat_direction", "retreat_min_dist", "retreat_max_dist", "hand_open_pose", "hand_close_pose"});
+		wrapper->properties().configureInitFrom(Stage::INTERFACE, { "target_pose" });
+		compute_ik_stage_ = wrapper.get();
+		insert(std::move(wrapper));
+
+	}
+	catch(pluginlib::PluginlibException& ex)
+	{
+		ROS_ERROR("The provider stage plugin failed to load. Error: %s", ex.what());
+	}
 
 	{
-		auto lift = std::make_unique<MoveRelative>(forward ? "lift object" : "place object", cartesian_solver_);
-		PropertyMap& p = lift->properties();
+		auto set_collision_object_hand = std::make_unique<ModifyPlanningScene>(is_pick_ ? "allow collision (hand,object)" : "forbid collision (hand,object)");
+		set_collision_object_hand->setForwardedProperties({"retreat_direction", "retreat_min_dist", "retreat_max_dist", "hand_open_pose", "hand_close_pose"});
+		set_collision_object_hand_stage_ = set_collision_object_hand.get();
+		insert(std::move(set_collision_object_hand));
+	}
+
+	{
+		auto open_close_hand = std::make_unique<MoveTo>(is_pick_ ? "close hand" : "open hand", sampling_planner_);
+		PropertyMap& p = open_close_hand->properties();
+		p.property("group").configureInitFrom(Stage::PARENT, "eef_group");
+		p.property("goal").configureInitFrom(Stage::INTERFACE, is_pick_ ? "hand_close_pose" : "hand_open_pose");
+		open_close_hand->setForwardedProperties({"retreat_direction", "retreat_min_dist", "retreat_max_dist"});
+		if (is_pick_)
+			insert(std::move(open_close_hand));
+		else
+			insert(std::move(open_close_hand), -2);
+	}
+
+	{
+		auto attach_detach = std::make_unique<ModifyPlanningScene>(is_pick_ ? "attach object" : "detach object");
+		attach_detach->setForwardedProperties({"retreat_direction", "retreat_min_dist", "retreat_max_dist"});
+		attach_detach_stage_ = attach_detach.get();
+		insert(std::move(attach_detach));
+	}
+
+	if (is_pick_) {
+		auto set_collision_object_support = std::make_unique<ModifyPlanningScene>("allow collision (object,support)");
+		set_collision_object_support->setForwardedProperties({"retreat_direction", "retreat_min_dist", "retreat_max_dist"});
+		allow_collision_object_support_stage_ = set_collision_object_support.get();
+		insert(std::move(set_collision_object_support));
+	}
+
+	{
+		auto move_back = std::make_unique<MoveRelative>(is_pick_ ? "lift object" : "retract", cartesian_solver_);
+		PropertyMap& p = move_back->properties();
 		p.property("group").configureInitFrom(Stage::PARENT, "eef_parent_group");
-		p.property("ik_frame").configureInitFrom(Stage::PARENT, init_ik_frame);
-		p.set("marker_ns", std::string(forward ? "lift" : "place"));
-		lift_stage_ = lift.get();
-		insert(std::move(lift), insertion_position);
+		p.property("ik_frame").configureInitFrom(Stage::PARENT, "ik_frame");
+		p.set("marker_ns", std::string(is_pick_ ? "lift" : "retract"));
+		p.property("direction").configureInitFrom(Stage::INTERFACE, "retreat_direction");
+		p.property("min_distance").configureInitFrom(Stage::INTERFACE, "retreat_min_dist");
+		p.property("max_distance").configureInitFrom(Stage::INTERFACE, "retreat_max_dist");
+		move_back_stage_ = move_back.get();
+		insert(std::move(move_back));
+	}
+
+	if (is_pick_) {
+		auto set_collision_object_support = std::make_unique<ModifyPlanningScene>("forbid collision (object,support)");
+		forbid_collision_object_support_stage_ = set_collision_object_support.get();
+		insert(std::move(set_collision_object_support));
 	}
 }
 
-void PickPlaceBase::init(const moveit::core::RobotModelConstPtr& robot_model) {
+template class PickPlaceBase<GraspProviderBase>;
+template class PickPlaceBase<PlaceProviderBase>;
+
+template <class C>
+void PickPlaceBase<C>::init(const moveit::core::RobotModelConstPtr& robot_model) {
 	// inherit properties from parent
 	PropertyMap* p = &properties();
 	p->performInitFrom(Stage::PARENT, parent()->properties());
@@ -75,29 +167,76 @@ void PickPlaceBase::init(const moveit::core::RobotModelConstPtr& robot_model) {
 	p->set<std::string>("eef_group", jmg->getName());
 	p->set<std::string>("eef_parent_group", jmg->getEndEffectorParentGroup().first);
 
+	set_collision_object_hand_stage_->allowCollisions(properties().get<std::string>("object"),
+		jmg->getLinkModelNamesWithCollisionGeometry(), is_pick_);
+
+	const std::string& object = properties().get<std::string>("object");
+	const geometry_msgs::PoseStamped& ik_frame = properties().get<geometry_msgs::PoseStamped>("ik_frame");
+	const std::vector<std::string>& support_surfaces = properties().get<std::vector<std::string>>("support_surfaces");
+	if (is_pick_) {
+		attach_detach_stage_->attachObject(object, ik_frame.header.frame_id);
+		allow_collision_object_support_stage_->allowCollisions({ object }, support_surfaces, true);
+		forbid_collision_object_support_stage_->allowCollisions({ object }, support_surfaces, false);
+	}
+	else
+		attach_detach_stage_->detachObject(object, ik_frame.header.frame_id);
+
 	// propagate my properties to children (and do standard init)
 	SerialContainer::init(robot_model);
 }
 
-void PickPlaceBase::setApproachRetract(const geometry_msgs::TwistStamped& motion, double min_distance,
-                                       double max_distance) {
-	auto& p = approach_stage_->properties();
-	p.set("direction", motion);
-	p.set("min_distance", min_distance);
-	p.set("max_distance", max_distance);
+
+/// -------------------------
+/// setters of own properties
+
+template <class C>
+void PickPlaceBase<C>::setIKFrame(const Eigen::Isometry3d& pose, const std::string& link) {
+	geometry_msgs::PoseStamped pose_msg;
+	pose_msg.header.frame_id = link;
+	tf::poseEigenToMsg(pose, pose_msg.pose);
+	setIKFrame(pose_msg);
 }
 
-void PickPlaceBase::setLiftPlace(const geometry_msgs::TwistStamped& motion, double min_distance, double max_distance) {
-	auto& p = lift_stage_->properties();
-	p.set("direction", motion);
-	p.set("min_distance", min_distance);
-	p.set("max_distance", max_distance);
+
+/// -------------------------
+/// setters of substage properties
+
+/// IK computation
+
+template <class C>
+void PickPlaceBase<C>::setMaxIKSolutions(const uint32_t& max_ik_solutions) {
+	auto& p = compute_ik_stage_->properties();
+	p.set("max_ik_solutions", max_ik_solutions);
 }
 
-void PickPlaceBase::setLiftPlace(const std::map<std::string, double>& joints) {
-	auto& p = lift_stage_->properties();
-	p.set("joints", joints);
+template <class C>
+void PickPlaceBase<C>::setMinIKSolutionDistance(const double& min_ik_solution_distance) {
+	auto& p = compute_ik_stage_->properties();
+	p.set("min_solution_distance", min_ik_solution_distance);
 }
+
+template <class C>
+void PickPlaceBase<C>::setIgnoreIKCollisions(const bool& ignore_ik_collisions) {
+	auto& p = compute_ik_stage_->properties();
+	p.set("ignore_collisions", ignore_ik_collisions);
+}
+
+
+/// -------------------------
+/// setters of pick properties
+
+void Pick::setMonitoredStage(Stage* monitored) {
+	provider_plugin_stage_->setMonitoredStage(monitored);
+}
+
+
+/// -------------------------
+/// setters of place properties
+
+void Place::setMonitoredStage(Stage* monitored) {
+	provider_plugin_stage_->setMonitoredStage(monitored);
+}
+
 }  // namespace stages
 }  // namespace task_constructor
 }  // namespace moveit

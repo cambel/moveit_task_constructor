@@ -10,6 +10,7 @@ find_package(catkin REQUIRED COMPONENTS
 	moveit_ros_planning_interface
 	moveit_task_constructor_msgs
 	roscpp
+	rosparam_shortcuts
 	visualization_msgs
 	rviz_marker_tools
 )
@@ -19,6 +20,7 @@ catkin_package(
 		${PROJECT_NAME}
 		${PROJECT_NAME}_stages
 		${PROJECT_NAME}_stage_plugins
+		${PROJECT_NAME}_tasks
 	INCLUDE_DIRS
 		include
 	CATKIN_DEPENDS
@@ -44,7 +46,7 @@ add_compile_options(-fvisibility-inlines-hidden)
 set(PROJECT_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/include/moveit/task_constructor)
 
 add_subdirectory(src)
-add_subdirectory(test)
+# add_subdirectory(test)
 
 install(DIRECTORY include/ DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION}
 	PATTERN "*_p.h" EXCLUDE)

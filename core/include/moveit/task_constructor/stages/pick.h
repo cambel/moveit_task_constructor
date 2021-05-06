@@ -32,19 +32,31 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************/
 
-/* Authors: Robert Haschke */
+/* Authors: Robert Haschke, Artur Karoly */
 
 #pragma once
 
+#include <pluginlib/class_loader.h>
 #include <moveit/macros/class_forward.h>
 #include <moveit/task_constructor/container.h>
+#include <moveit/task_constructor/stages/move_relative.h>
+#include <moveit/task_constructor/stages/compute_ik.h>
+#include <moveit/task_constructor/stages/grasp_provider.h>
+#include <moveit/task_constructor/stages/place_provider.h>
+#include <moveit/task_constructor/stages/modify_planning_scene.h>
 #include <geometry_msgs/TwistStamped.h>
+#include <geometry_msgs/Vector3Stamped.h>
+#include <geometry_msgs/PoseStamped.h>
+#include <Eigen/Geometry>
+#include "grasp_provider_base.h"
+#include "place_provider_base.h"
 
 namespace moveit {
 namespace task_constructor {
 
 namespace solvers {
-MOVEIT_CLASS_FORWARD(CartesianPath);
+MOVEIT_CLASS_FORWARD(CartesianPath)
+MOVEIT_CLASS_FORWARD(PipelinePlanner)
 }
 
 namespace stages {
@@ -53,73 +65,112 @@ namespace stages {
  *
  * Picking consist of the following sub stages:
  * - linearly approaching the object along an approach direction/twist
- * - "grasp" end effector posture
+ * - GraspProviderPlugin stage wrapped in an IK computation
+ * - close hand
  * - attach object
  * - lift along along a given direction/twist
  *
  * Placing consist of the inverse order of stages:
  * - place down along a given direction
+ * - PlaceProviderPlugin stage wrapped in an IK computation
+ * - open hand
  * - detach the object
  * - linearly retract end effector
- *
- * The end effector postures corresponding to pre-grasp and grasp as well as
- * the end effector's Cartesian pose needs to be provided by an external grasp stage.
  */
+template <class C>
 class PickPlaceBase : public SerialContainer
 {
+
+	bool is_pick_;
+
 	solvers::CartesianPathPtr cartesian_solver_;
-	Stage* grasp_stage_ = nullptr;
-	Stage* approach_stage_ = nullptr;
-	Stage* lift_stage_ = nullptr;
+	solvers::PipelinePlannerPtr sampling_planner_;
+
+	MoveRelative* move_there_stage_ = nullptr;
+	ComputeIK* compute_ik_stage_ = nullptr;
+	ModifyPlanningScene* set_collision_object_hand_stage_ = nullptr;
+	ModifyPlanningScene* allow_collision_object_support_stage_ = nullptr;
+	ModifyPlanningScene* forbid_collision_object_support_stage_ = nullptr;
+	MoveRelative* move_back_stage_ = nullptr;
+
+	std::string provider_stage_plugin_name_;
+
+protected:
+	C* provider_plugin_stage_ = nullptr;
+	ModifyPlanningScene* attach_detach_stage_ = nullptr;
 
 public:
-	PickPlaceBase(Stage::pointer&& grasp_stage, const std::string& name, bool forward);
+	PickPlaceBase(const std::string& name, const std::string& provider_stage_plugin_name, bool is_pick, pluginlib::ClassLoader<C>* class_loader);
 
 	void init(const moveit::core::RobotModelConstPtr& robot_model) override;
 
+	/// -------------------------
+	/// setters of own properties
+
+	/// eef
 	void setEndEffector(const std::string& eef) { properties().set<std::string>("eef", eef); }
-	void setObject(const std::string& object) { properties().set<std::string>("object", object); }
+	void setEndEffectorOpenClose(const std::string& open_pose_name, const std::string& close_pose_name){
+		properties().set<std::string>("eef_group_open_pose", open_pose_name);
+		properties().set<std::string>("eef_group_close_pose", close_pose_name);
+	}
+
+	/// object
+	void setObject(const std::string& object) {properties().set<std::string>("object", object);}
+
+	/// support surfaces
+	void setSupportSurfaces(const std::vector<std::string>& surfaces) {properties().set<std::vector<std::string>>("support_surfaces", surfaces);}
+
+	/// IK frame
+	void setIKFrame(const geometry_msgs::PoseStamped& pose) { setProperty("ik_frame", pose); }
+	void setIKFrame(const Eigen::Isometry3d& pose, const std::string& link);
+	template <typename T>
+	void setIKFrame(const T& p, const std::string& link) {
+		Eigen::Isometry3d pose;
+		pose = p;
+		setIKFrame(pose, link);
+	}
+	void setIKFrame(const std::string& link) { setIKFrame(Eigen::Isometry3d::Identity(), link); }
+
+	/// -------------------------
+	/// setters of substage properties
+
+	/// IK computation
+	void setMaxIKSolutions(const uint32_t& max_ik_solutions);
+	void setMinIKSolutionDistance(const double& min_ik_solution_distance);
+	void setIgnoreIKCollisions(const bool& ignore_ik_collisions);
+
+	/// -------------------------
+	/// getters, for further configuration
 
 	solvers::CartesianPathPtr cartesianSolver() { return cartesian_solver_; }
-
-	void setApproachRetract(const geometry_msgs::TwistStamped& motion, double min_distance, double max_distance);
-
-	void setLiftPlace(const geometry_msgs::TwistStamped& motion, double min_distance, double max_distance);
-	void setLiftPlace(const std::map<std::string, double>& joints);
+	solvers::PipelinePlannerPtr samplingPlanner() {return sampling_planner_;}
+	
+	// Use this to retrieve a pointer to the GraspProviderPlugin object, to set its custom properties
+	C* ProviderPlugin() {return provider_plugin_stage_;}
 };
 
 /// specialization of PickPlaceBase to realize picking
-class Pick : public PickPlaceBase
+class Pick : public PickPlaceBase <GraspProviderBase>
 {
 public:
-	Pick(Stage::pointer&& grasp_stage = Stage::pointer(), const std::string& name = "pick")
-	  : PickPlaceBase(std::move(grasp_stage), name, true) {}
+	Pick(const std::string& name = "pick", const std::string& provider_stage_plugin_name = "moveit_task_constructor/GraspProviderDefault", pluginlib::ClassLoader<GraspProviderBase>* class_loader = nullptr)
+	  : PickPlaceBase(name, provider_stage_plugin_name, true, class_loader) {}
 
-	void setApproachMotion(const geometry_msgs::TwistStamped& motion, double min_distance, double max_distance) {
-		setApproachRetract(motion, min_distance, max_distance);
-	}
+	void setMonitoredStage(Stage* monitored);
 
-	void setLiftMotion(const geometry_msgs::TwistStamped& motion, double min_distance, double max_distance) {
-		setLiftPlace(motion, min_distance, max_distance);
-	}
-	void setLiftMotion(const std::map<std::string, double>& joints) { setLiftPlace(joints); }
+	moveit::task_constructor::Stage* attachStage() {return attach_detach_stage_;}
 };
 
 /// specialization of PickPlaceBase to realize placing
-class Place : public PickPlaceBase
+class Place : public PickPlaceBase <PlaceProviderBase>
 {
 public:
-	Place(Stage::pointer&& ungrasp_stage = Stage::pointer(), const std::string& name = "place")
-	  : PickPlaceBase(std::move(ungrasp_stage), name, false) {}
+	Place(const std::string& name = "place", const std::string& provider_stage_plugin_name = "moveit_task_constructor/PlaceProviderDefault", pluginlib::ClassLoader<PlaceProviderBase>* class_loader = nullptr)
+	  : PickPlaceBase(name, provider_stage_plugin_name, false, class_loader) {}
 
-	void setRetractMotion(const geometry_msgs::TwistStamped& motion, double min_distance, double max_distance) {
-		setApproachRetract(motion, min_distance, max_distance);
-	}
+	void setMonitoredStage(Stage* monitored);
 
-	void setPlaceMotion(const geometry_msgs::TwistStamped& motion, double min_distance, double max_distance) {
-		setLiftPlace(motion, min_distance, max_distance);
-	}
-	void setPlaceMotion(const std::map<std::string, double>& joints) { setLiftPlace(joints); }
+	moveit::task_constructor::Stage* detachStage() {return attach_detach_stage_;}
 };
 }  // namespace stages
 }  // namespace task_constructor
