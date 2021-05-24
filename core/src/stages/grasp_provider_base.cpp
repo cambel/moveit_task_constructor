@@ -81,7 +81,7 @@ void GraspProviderBase::onNewSolution(const SolutionBase& s) {
 
 	const auto& props = properties();
 	const std::string& object = props.get<std::string>("object");
-	if (!scene->knowsFrameTransform(object)) {
+	if (!object.empty() && !scene->knowsFrameTransform(object)) {
 		const std::string msg = "object '" + object + "' not in scene";
 		if (storeFailures()) {
 			InterfaceState state(scene);

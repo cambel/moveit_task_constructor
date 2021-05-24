@@ -63,10 +63,13 @@ void PlaceProviderBase::onNewSolution(const SolutionBase& s) {
 	const auto& props = properties();
 	const std::string& object = props.get<std::string>("object");
 	std::string msg;
-	if (!scene->getCurrentState().hasAttachedBody(object))
-		msg = "'" + object + "' is not an attached object";
-	if (scene->getCurrentState().getAttachedBody(object)->getFixedTransforms().empty())
-		msg = "'" + object + "' has no associated shapes";
+	if (!object.empty())
+	{
+		if (!scene->getCurrentState().hasAttachedBody(object))
+			msg = "'" + object + "' is not an attached object";
+		if (scene->getCurrentState().getAttachedBody(object)->getFixedTransforms().empty())
+			msg = "'" + object + "' has no associated shapes";
+	}
 	if (!msg.empty()) {
 		if (storeFailures()) {
 			InterfaceState state(scene);

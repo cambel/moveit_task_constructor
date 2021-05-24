@@ -103,21 +103,24 @@ bool PickPlaceTask::init(const Parameters& parameters)
     applicability_filter->setPredicate([&](const SolutionBase& s, std::string& comment) {
       s.start()->scene()->printKnownObjects(std::cout);
     
-      if (parameters.task_type_ == moveit_task_constructor_msgs::PlanPickPlaceGoal::PICK_ONLY || 
-          parameters.task_type_ == moveit_task_constructor_msgs::PlanPickPlaceGoal::PICK_AND_PLACE)
+      if (!parameters.object_name_.empty())
       {
-        if (s.start()->scene()->getCurrentState().hasAttachedBody(parameters.object_name_))
+        if (parameters.task_type_ == moveit_task_constructor_msgs::PlanPickPlaceGoal::PICK_ONLY || 
+            parameters.task_type_ == moveit_task_constructor_msgs::PlanPickPlaceGoal::PICK_AND_PLACE)
         {
-          comment = "object with id '" + parameters.object_name_ + "' is already attached and cannot be picked";
-          return false;
+          if (s.start()->scene()->getCurrentState().hasAttachedBody(parameters.object_name_))
+          {
+            comment = "object with id '" + parameters.object_name_ + "' is already attached and cannot be picked";
+            return false;
+          }
         }
-      }
-      else if (parameters.task_type_ == moveit_task_constructor_msgs::PlanPickPlaceGoal::PLACE_ONLY)
-      {
-        if (!s.start()->scene()->getCurrentState().hasAttachedBody(parameters.object_name_))
+        else if (parameters.task_type_ == moveit_task_constructor_msgs::PlanPickPlaceGoal::PLACE_ONLY)
         {
-          comment = "object with id '" + parameters.object_name_ + "' is not attached, so it cannot be placed";
-          return false;
+          if (!s.start()->scene()->getCurrentState().hasAttachedBody(parameters.object_name_))
+          {
+            comment = "object with id '" + parameters.object_name_ + "' is not attached, so it cannot be placed";
+            return false;
+          }
         }
       }
       return true;
