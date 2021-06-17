@@ -55,8 +55,8 @@ namespace moveit {
 namespace task_constructor {
 
 namespace solvers {
-MOVEIT_CLASS_FORWARD(CartesianPath)
-MOVEIT_CLASS_FORWARD(PipelinePlanner)
+MOVEIT_CLASS_FORWARD(CartesianPath);
+MOVEIT_CLASS_FORWARD(PipelinePlanner);
 }
 
 namespace stages {
