@@ -9,6 +9,7 @@ find_package(catkin REQUIRED COMPONENTS
   moveit_ros_move_group
   moveit_task_constructor_msgs
   moveit_task_constructor_core
+  moveit_ros_planning_interface
   pluginlib
   std_msgs
 )
@@ -19,6 +20,7 @@ catkin_package(
     actionlib
     moveit_task_constructor_msgs
     moveit_task_constructor_core
+    moveit_ros_planning_interface
     std_msgs
 )
 
