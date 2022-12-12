@@ -41,6 +41,8 @@
 #include <moveit/kinematic_constraints/utils.h>
 #include <moveit/move_group/capability_names.h>
 #include <moveit/robot_state/conversions.h>
+#include <moveit/utils/moveit_error_code.h>
+
 #if MOVEIT_MASTER
 #include <moveit/utils/message_checks.h>
 #endif
@@ -110,7 +112,8 @@ void ExecuteTaskSolutionCapability::goalCallback(
 		result.error_code = context_->plan_execution_->executeAndMonitor(plan);
 	}
 
-	const std::string response = context_->plan_execution_->getErrorCodeString(result.error_code);
+	
+	const std::string response = moveit::core::MoveItErrorCode::toString(result.error_code);
 
 	if (result.error_code.val == moveit_msgs::MoveItErrorCodes::SUCCESS)
 		as_->setSucceeded(result, response);
